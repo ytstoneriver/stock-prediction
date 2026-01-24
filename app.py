@@ -539,12 +539,11 @@ def main():
     <div class="main-header">
         <div class="logo-mark">
             <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="1" y="1" width="42" height="42" rx="10" stroke="#171717" stroke-width="1.5" fill="none"/>
-                <path d="M12 28L18 22L23 25L32 14" stroke="#171717" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="28" r="2.5" fill="#171717"/>
-                <circle cx="18" cy="22" r="2.5" fill="#171717"/>
-                <circle cx="23" cy="25" r="2.5" fill="#171717"/>
-                <circle cx="32" cy="14" r="2.5" fill="#171717"/>
+                <rect x="4" y="4" width="16" height="16" fill="#171717"/>
+                <rect x="24" y="4" width="16" height="16" fill="#d4d4d4"/>
+                <rect x="4" y="24" width="16" height="16" fill="#a3a3a3"/>
+                <rect x="24" y="24" width="16" height="16" fill="#525252"/>
+                <rect x="14" y="14" width="16" height="16" fill="none" stroke="#171717" stroke-width="1.5"/>
             </svg>
         </div>
         <div>
