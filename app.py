@@ -236,13 +236,11 @@ st.markdown("""
         color: #171717;
     }
 
-    /* メタ情報 */
-    .stock-meta {
+    /* 価格 */
+    .stock-prices {
         display: flex;
-        gap: 0.75rem;
-        align-items: center;
-        flex-wrap: wrap;
-        margin-top: auto;
+        gap: 1.25rem;
+        margin-bottom: 0.875rem;
     }
     .meta-item {
         display: flex;
@@ -257,6 +255,19 @@ st.markdown("""
         font-weight: 500;
         color: #171717;
         font-size: 0.8rem;
+    }
+
+    /* フッター */
+    .stock-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: auto;
+    }
+    .stock-tags {
+        display: flex;
+        gap: 0.375rem;
+        flex-wrap: wrap;
     }
     .tag {
         background: #fafafa;
@@ -367,9 +378,8 @@ st.markdown("""
     /* モバイル */
     @media (max-width: 768px) {
         .main-header h1 { font-size: 1.25rem; }
-        .stock-meta { gap: 0.75rem; }
-        .stock-card { padding: 0.875rem 1rem; }
-        .score-bar { width: 48px; }
+        .stock-prices { gap: 1rem; }
+        .stock-card { padding: 1rem; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -547,7 +557,7 @@ def render_stock_card(rank, code, name, score, open_price, close_price, reason, 
                 <div class="score-value">{score:.2f}</div>
             </div>
         </div>
-        <div class="stock-meta">
+        <div class="stock-prices">
             <div class="meta-item">
                 <span class="meta-label">始値</span>
                 <span class="meta-value">{open_str}</span>
@@ -556,7 +566,9 @@ def render_stock_card(rank, code, name, score, open_price, close_price, reason, 
                 <span class="meta-label">終値</span>
                 <span class="meta-value">{close_str}</span>
             </div>
-            {reason_tags}
+        </div>
+        <div class="stock-footer">
+            <div class="stock-tags">{reason_tags}</div>
             <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
         </div>
     </div>
