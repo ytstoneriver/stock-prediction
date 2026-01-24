@@ -156,18 +156,18 @@ st.markdown("""
         min-width: 0;
         flex: 1;
     }
-    .stock-code {
-        font-size: 1rem;
+    .stock-name-main {
+        font-size: 0.95rem;
         font-weight: 600;
         color: #171717;
-    }
-    .stock-name {
-        color: #737373;
-        font-size: 0.75rem;
-        margin-top: 0.125rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    .stock-code-sub {
+        color: #737373;
+        font-size: 0.75rem;
+        margin-top: 0.125rem;
     }
 
     /* スコア */
@@ -300,6 +300,28 @@ st.markdown("""
 
 DATA_DIR = Path(__file__).parent / "data"
 
+# 日本語会社名マッピング（yfinanceで取得できない場合のフォールバック）
+COMPANY_NAMES = {}
+
+
+@st.cache_data(ttl=86400)
+def fetch_company_name_from_yahoo(code: str) -> str:
+    """Yahoo Financeから日本語会社名を取得"""
+    try:
+        import urllib.request
+        url = f"https://finance.yahoo.co.jp/quote/{code}.T"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as res:
+            html = res.read().decode('utf-8')
+            # タイトルから会社名を抽出
+            import re
+            match = re.search(r'<title>(.+?)【\d+】', html)
+            if match:
+                return match.group(1).strip()
+    except:
+        pass
+    return None
+
 
 @st.cache_data(ttl=3600)
 def load_predictions():
@@ -315,21 +337,18 @@ def load_predictions():
 
 @st.cache_data(ttl=300)
 def get_stock_info(ticker: str):
+    code = ticker.replace('.T', '')
+
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-
-        # 日本語名を取得（displayNameやshortNameを試す）
-        name = info.get('displayName') or info.get('shortName') or info.get('longName') or 'N/A'
-
-        # 英語名の場合、コードから日本語名を取得を試みる
-        if name and name.replace(' ', '').replace('.', '').replace(',', '').isascii():
-            # yfinanceのlongNameに日本語が含まれることがある
-            long_name = info.get('longName', '')
-            if long_name and not long_name.replace(' ', '').replace('.', '').replace(',', '').isascii():
-                name = long_name
-
         hist = stock.history(period='60d')
+
+        # 日本語名を取得（Yahoo Financeから）
+        name = fetch_company_name_from_yahoo(code)
+        if not name:
+            name = info.get('shortName') or info.get('longName') or code
+
         if len(hist) < 20:
             return name, None, 'データ不足'
 
@@ -374,7 +393,9 @@ def get_stock_info(ticker: str):
         return name, close_price, ', '.join(reasons[:2])
 
     except Exception as e:
-        return 'N/A', None, '-'
+        # エラー時もYahooから名前を取得
+        name = fetch_company_name_from_yahoo(code) or code
+        return name, None, '-'
 
 
 def render_skeleton():
@@ -392,7 +413,7 @@ def render_stock_card(rank, code, name, score, price, reason):
     top_class = f"top-{rank}" if rank <= 3 else ""
     rank_class = f"top-{rank}" if rank <= 3 else ""
     yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
-    display_name = name if name else "-"
+    display_name = name if name else code
 
     st.markdown(f"""
     <div class="stock-card {top_class}">
@@ -400,8 +421,8 @@ def render_stock_card(rank, code, name, score, price, reason):
             <div class="stock-info">
                 <div class="stock-rank {rank_class}">{rank}</div>
                 <div class="stock-text">
-                    <div class="stock-code">{code}</div>
-                    <div class="stock-name">{display_name}</div>
+                    <div class="stock-name-main">{display_name}</div>
+                    <div class="stock-code-sub">{code}</div>
                 </div>
             </div>
             <div class="score-container">
