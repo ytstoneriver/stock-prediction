@@ -375,11 +375,24 @@ st.markdown("""
         background: #171717;
     }
 
+    /* 銘柄グリッド */
+    .stock-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    .stock-grid .stock-card {
+        margin-bottom: 0;
+    }
+
     /* モバイル */
     @media (max-width: 768px) {
         .main-header h1 { font-size: 1.25rem; }
         .stock-prices { gap: 1rem; }
         .stock-card { padding: 1rem; }
+        .stock-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -534,7 +547,7 @@ def render_skeleton():
     """, unsafe_allow_html=True)
 
 
-def render_stock_card(rank, code, name, score, open_price, close_price, reason, sector):
+def get_stock_card_html(rank, code, name, score, open_price, close_price, reason, sector):
     open_str = f"¥{open_price:,.0f}" if open_price else "-"
     close_str = f"¥{close_price:,.0f}" if close_price else "-"
     top_class = f"top-{rank}" if rank <= 3 else ""
@@ -557,7 +570,7 @@ def render_stock_card(rank, code, name, score, open_price, close_price, reason, 
         else:
             reason_tags += f'<span class="tag">{r}</span>'
 
-    st.markdown(f"""
+    return f"""
     <div class="stock-card {top_class}">
         <div class="stock-main">
             <div class="stock-info">
@@ -586,7 +599,7 @@ def render_stock_card(rank, code, name, score, open_price, close_price, reason, 
             <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """
 
 
 def main():
@@ -715,11 +728,12 @@ def main():
     progress.empty()
     status.empty()
 
-    # 2カラムレイアウト
-    col1, col2 = st.columns(2)
-    for i, r in enumerate(results):
-        with col1 if i % 2 == 0 else col2:
-            render_stock_card(r['rank'], r['code'], r['name'], r['score'], r['open'], r['close'], r['reason'], r['sector'])
+    # CSSグリッドレイアウト
+    cards_html = '<div class="stock-grid">'
+    for r in results:
+        cards_html += get_stock_card_html(r['rank'], r['code'], r['name'], r['score'], r['open'], r['close'], r['reason'], r['sector'])
+    cards_html += '</div>'
+    st.markdown(cards_html, unsafe_allow_html=True)
 
     st.markdown("""
     <div class="disclaimer">
