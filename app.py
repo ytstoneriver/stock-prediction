@@ -590,7 +590,7 @@ def main():
         </div>
         <div class="header-text">
             <h1>StockSignal</h1>
-            <p>東証プライム市場 · 短期上昇シグナル検出</p>
+            <p>東証プライム市場における短期上昇シグナル検出</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
