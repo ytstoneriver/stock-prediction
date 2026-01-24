@@ -31,42 +31,51 @@ st.markdown("""
 
     /* ヘッダー */
     .main-header {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
         border-bottom: 1px solid #e5e5e5;
         padding: 0 0 1.5rem 0;
         margin-bottom: 2rem;
     }
+    .logo-icon {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+    }
     .main-header h1 {
         margin: 0;
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         font-weight: 600;
         color: #171717;
         letter-spacing: -0.025em;
     }
     .main-header p {
-        margin: 0.25rem 0 0 0;
-        color: #737373;
-        font-size: 0.875rem;
+        margin: 0.125rem 0 0 0;
+        color: #a3a3a3;
+        font-size: 0.8rem;
     }
 
-    /* 統計カード */
+    /* 統計 */
     .stats-container {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
+        display: flex;
+        gap: 2.5rem;
         margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e5e5e5;
     }
     @media (max-width: 768px) {
         .stats-container {
-            grid-template-columns: 1fr;
+            flex-direction: column;
+            gap: 1rem;
         }
     }
-    .stat-card {
-        background: #fafafa;
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
+    .stat-item {
+        display: flex;
+        flex-direction: column;
     }
     .stat-label {
-        color: #737373;
+        color: #a3a3a3;
         font-size: 0.7rem;
         font-weight: 500;
         text-transform: uppercase;
@@ -74,9 +83,10 @@ st.markdown("""
         margin-bottom: 0.25rem;
     }
     .stat-value {
-        font-size: 1.125rem;
+        font-size: 1rem;
         font-weight: 600;
         color: #171717;
+        white-space: nowrap;
     }
 
     /* セクション */
@@ -512,8 +522,15 @@ def render_stock_card(rank, code, name, score, price, reason, sector):
 def main():
     st.markdown("""
     <div class="main-header">
-        <h1>StockSignal</h1>
-        <p>短期上昇シグナル検出</p>
+        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="6" fill="#171717"/>
+            <path d="M8 20L12 16L16 18L24 10" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M20 10H24V14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+            <h1>StockSignal</h1>
+            <p>短期上昇シグナル検出</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -567,18 +584,18 @@ def main():
 
     weekdays = ['月', '火', '水', '木', '金', '土', '日']
 
-    # 統計カード
+    # 統計
     st.markdown(f"""
     <div class="stats-container">
-        <div class="stat-card">
+        <div class="stat-item">
             <div class="stat-label">シグナル日</div>
             <div class="stat-value">{selected_ts.strftime('%Y/%m/%d')} ({weekdays[selected_ts.weekday()]})</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-item">
             <div class="stat-label">エントリー</div>
             <div class="stat-value">{entry_date.strftime('%Y/%m/%d')} ({weekdays[entry_date.weekday()]}) 寄付</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-item">
             <div class="stat-label">検出銘柄</div>
             <div class="stat-value">{len(day_predictions)} 銘柄</div>
         </div>
