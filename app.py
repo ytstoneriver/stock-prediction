@@ -12,12 +12,229 @@ import yfinance as yf
 st.set_page_config(
     page_title="株価上昇予測",
     page_icon="📈",
-    layout="centered"
+    layout="wide"
 )
 
-# タイトル
-st.title("📈 株価上昇予測システム")
-st.caption("LightGBMモデルによる短期上昇候補の検出")
+# カスタムCSS
+st.markdown("""
+<style>
+    /* フォント */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Noto Sans JP', sans-serif;
+    }
+
+    /* メインコンテナ */
+    .main > div {
+        padding-top: 1rem;
+    }
+
+    /* ヘッダー */
+    .main-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        padding: 2.5rem 2rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        color: white;
+    }
+    .main-header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+    .main-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.7;
+        font-size: 0.9rem;
+        font-weight: 400;
+    }
+
+    /* 情報カード */
+    .info-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1rem;
+    }
+    .info-card-label {
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+    .info-card-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    /* 銘柄カード */
+    .stock-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.25rem;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    .stock-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .stock-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    .stock-rank {
+        background: #0f172a;
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+    .stock-code {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .stock-name {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-top: 0.125rem;
+    }
+    .stock-score {
+        background: #ecfdf5;
+        color: #059669;
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
+    .stock-meta {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    .stock-price {
+        font-weight: 600;
+        color: #0f172a;
+    }
+    .stock-price-label {
+        color: #94a3b8;
+        font-size: 0.7rem;
+        margin-right: 0.25rem;
+    }
+    .stock-reason {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 0.25rem 0.625rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+
+    /* サイドバー */
+    [data-testid="stSidebar"] {
+        background: #f8fafc;
+    }
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #475569;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    /* セクションタイトル */
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #0f172a;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    /* モバイル対応 */
+    @media (max-width: 768px) {
+        .main-header {
+            padding: 1.5rem;
+        }
+        .main-header h1 {
+            font-size: 1.25rem;
+        }
+        .stock-meta {
+            gap: 0.75rem;
+        }
+        .stock-card {
+            padding: 1rem;
+        }
+        .info-card {
+            padding: 1rem;
+        }
+        .info-card-value {
+            font-size: 1rem;
+        }
+    }
+
+    /* プログレスバー */
+    .stProgress > div > div {
+        background: #0f172a;
+    }
+
+    /* 注意書き */
+    .disclaimer {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        font-size: 0.8rem;
+        color: #64748b;
+        margin-top: 2rem;
+        line-height: 1.6;
+    }
+    .disclaimer strong {
+        color: #475569;
+    }
+
+    /* ルールカード */
+    .rule-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e2e8f0;
+        font-size: 0.875rem;
+    }
+    .rule-item:last-child {
+        border-bottom: none;
+    }
+    .rule-label {
+        color: #64748b;
+    }
+    .rule-value {
+        font-weight: 600;
+        color: #0f172a;
+    }
+
+    /* Streamlitデフォルトの調整 */
+    .stSlider label {
+        font-size: 0.875rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # データディレクトリ
 DATA_DIR = Path(__file__).parent / "data"
@@ -27,22 +244,14 @@ MODEL_DIR = Path(__file__).parent / "models"
 @st.cache_data(ttl=3600)
 def load_predictions():
     """予測データを読み込み"""
-    # 軽量版を優先
     pred_path = DATA_DIR / "app_predictions.parquet"
     if not pred_path.exists():
         pred_path = DATA_DIR / "test_predictions.parquet"
     if not pred_path.exists():
         return None
-    return pd.read_parquet(pred_path)
-
-
-@st.cache_data(ttl=3600)
-def load_labeled_data():
-    """ラベル付きデータを読み込み"""
-    data_path = DATA_DIR / "labeled_data.parquet"
-    if not data_path.exists():
-        return None
-    return pd.read_parquet(data_path)
+    df = pd.read_parquet(pred_path)
+    df['date'] = pd.to_datetime(df['date'])
+    return df
 
 
 @st.cache_data(ttl=300)
@@ -51,9 +260,9 @@ def get_stock_info(ticker: str):
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        name = info.get('longName') or info.get('shortName') or 'N/A'
 
-        # 直近60日のデータを取得
+        name = info.get('shortName') or info.get('longName') or 'N/A'
+
         hist = stock.history(period='60d')
         if len(hist) < 20:
             return name, None, None, 'データ不足'
@@ -62,10 +271,9 @@ def get_stock_info(ticker: str):
         open_price = last_row['Open']
         close_price = last_row['Close']
 
-        # 買い理由を分析
         reasons = []
 
-        # RSI計算
+        # RSI
         delta = hist['Close'].diff()
         gain = delta.where(delta > 0, 0).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
@@ -73,19 +281,18 @@ def get_stock_info(ticker: str):
         rsi = 100 - (100 / (1 + rs))
         current_rsi = rsi.iloc[-1]
         if current_rsi < 30:
-            reasons.append(f'RSI={current_rsi:.0f}(売られ過ぎ)')
+            reasons.append(f'RSI {current_rsi:.0f}')
         elif current_rsi < 40:
-            reasons.append(f'RSI={current_rsi:.0f}(低め)')
+            reasons.append(f'RSI {current_rsi:.0f}')
 
-        # 52週安値からの位置
+        # 52週安値
         low_52w = hist['Low'].min()
         high_52w = hist['High'].max()
-        current = close_price
-        position = (current - low_52w) / (high_52w - low_52w) * 100 if high_52w > low_52w else 50
+        position = (close_price - low_52w) / (high_52w - low_52w) * 100 if high_52w > low_52w else 50
         if position < 20:
-            reasons.append('52週安値圏')
-        elif position < 35:
             reasons.append('安値圏')
+        elif position < 35:
+            reasons.append('低位置')
 
         # 連続下落
         returns = hist['Close'].pct_change()
@@ -98,108 +305,169 @@ def get_stock_info(ticker: str):
         if consecutive_down >= 3:
             reasons.append(f'{consecutive_down}日続落')
 
-        # 出来高急増
+        # 出来高
         vol_ma = hist['Volume'].rolling(20).mean()
         if len(vol_ma) > 0 and vol_ma.iloc[-1] > 0:
             vol_ratio = hist['Volume'].iloc[-1] / vol_ma.iloc[-1]
             if vol_ratio > 2.0:
-                reasons.append(f'出来高{vol_ratio:.1f}倍')
-            elif vol_ratio > 1.5:
-                reasons.append('出来高増')
+                reasons.append(f'出来高{vol_ratio:.1f}x')
 
-        # ボリンジャーバンド
-        ma20 = hist['Close'].rolling(20).mean()
-        std20 = hist['Close'].rolling(20).std()
-        bb_lower = ma20 - 2 * std20
-        if close_price < bb_lower.iloc[-1]:
-            reasons.append('BB下限割れ')
-
-        # 直近の下落率
+        # 下落率
         ret_5d = (close_price / hist['Close'].iloc[-6] - 1) * 100 if len(hist) >= 6 else 0
         if ret_5d < -10:
-            reasons.append(f'5日で{ret_5d:.0f}%')
+            reasons.append(f'{ret_5d:.0f}% / 5d')
         elif ret_5d < -5:
-            reasons.append(f'5日で{ret_5d:.0f}%')
+            reasons.append(f'{ret_5d:.0f}% / 5d')
 
         if not reasons:
-            reasons.append('MLスコア高')
+            reasons.append('ML Score')
 
-        reason_str = ', '.join(reasons[:2])
-        return name, open_price, close_price, reason_str
+        return name, open_price, close_price, ', '.join(reasons[:2])
 
     except Exception as e:
-        return 'N/A', None, None, str(e)[:20]
+        return 'N/A', None, None, '-'
+
+
+def render_stock_card(rank, code, name, score, price, reason):
+    """銘柄カードをレンダリング"""
+    price_str = f"¥{price:,.0f}" if price else "-"
+    st.markdown(f"""
+    <div class="stock-card">
+        <div class="stock-header">
+            <div style="display: flex; align-items: center; gap: 0.875rem;">
+                <div class="stock-rank">{rank}</div>
+                <div>
+                    <div class="stock-code">{code}</div>
+                    <div class="stock-name">{name}</div>
+                </div>
+            </div>
+            <div class="stock-score">{score:.2f}</div>
+        </div>
+        <div class="stock-meta">
+            <div>
+                <span class="stock-price-label">終値</span>
+                <span class="stock-price">{price_str}</span>
+            </div>
+            <div class="stock-reason">{reason}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def main():
+    # ヘッダー
+    st.markdown("""
+    <div class="main-header">
+        <h1>株価上昇予測システム</h1>
+        <p>LightGBMモデルによる短期上昇候補の検出</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     # データ読み込み
     predictions = load_predictions()
 
     if predictions is None:
-        st.error("予測データが見つかりません。先にモデルを実行してください。")
+        st.error("予測データが見つかりません。")
         st.stop()
 
-    # 利用可能な日付を取得
     available_dates = sorted(predictions['date'].unique())
 
     # サイドバー
-    st.sidebar.header("設定")
+    with st.sidebar:
+        st.markdown("### 設定")
 
-    # 日付選択
-    min_date = pd.Timestamp(available_dates[0]).date()
-    max_date = pd.Timestamp(available_dates[-1]).date()
+        min_date = pd.Timestamp(available_dates[0]).date()
+        max_date = pd.Timestamp(available_dates[-1]).date()
 
-    selected_date = st.sidebar.date_input(
-        "分析日（シグナル日）",
-        value=max_date,
-        min_value=min_date,
-        max_value=max_date
-    )
+        selected_date = st.date_input(
+            "分析日",
+            value=max_date,
+            min_value=min_date,
+            max_value=max_date
+        )
 
-    # 表示件数
-    top_n = st.sidebar.slider("表示件数", 5, 30, 20)
+        top_n = st.slider("表示件数", 5, 30, 10)
 
-    # パラメータ表示
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("売買ルール")
-    st.sidebar.markdown("""
-    - 利確: **+12%**
-    - 損切り: **ATR×2.0**
-    - 最大保有: **15日**
-    """)
+        st.markdown("---")
+        st.markdown("### 売買ルール")
+        st.markdown("""
+        <div class="rule-item">
+            <span class="rule-label">利確</span>
+            <span class="rule-value">+12%</span>
+        </div>
+        <div class="rule-item">
+            <span class="rule-label">損切り</span>
+            <span class="rule-value">ATR × 2.0</span>
+        </div>
+        <div class="rule-item">
+            <span class="rule-label">最大保有</span>
+            <span class="rule-value">15日</span>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # 分析実行
-    st.markdown("---")
+        st.markdown("---")
+        with st.expander("更新方法"):
+            st.markdown("""
+            **データ更新**
+            ```
+            python scripts/phase1_data_check.py
+            python scripts/phase2_train.py
+            python scripts/phase3_backtest.py
+            ```
 
-    # 選択された日付の予測を取得
+            **デプロイ更新**
+            GitHubへpushで自動反映
+            """)
+
+    # メイン
     selected_ts = pd.Timestamp(selected_date)
 
     if selected_ts not in [pd.Timestamp(d) for d in available_dates]:
-        # 最も近い日付を探す
         closest_date = min(available_dates, key=lambda x: abs(pd.Timestamp(x) - selected_ts))
-        st.warning(f"選択された日付のデータがありません。最も近い日付 {closest_date.strftime('%Y-%m-%d')} を使用します。")
+        st.warning(f"{closest_date.strftime('%Y-%m-%d')} を表示")
         selected_ts = pd.Timestamp(closest_date)
 
     day_predictions = predictions[predictions['date'] == selected_ts].copy()
     day_predictions = day_predictions.sort_values('rank')
 
-    # エントリー日を計算（翌営業日）
     entry_date = selected_ts + pd.Timedelta(days=1)
-    # 土日をスキップ
     while entry_date.weekday() >= 5:
         entry_date += pd.Timedelta(days=1)
 
-    st.subheader(f"📊 分析結果")
-    st.markdown(f"**シグナル日**: {selected_ts.strftime('%Y-%m-%d')}（{['月','火','水','木','金','土','日'][selected_ts.weekday()]}）")
-    st.markdown(f"**エントリー**: {entry_date.strftime('%Y-%m-%d')}（{['月','火','水','木','金','土','日'][entry_date.weekday()]}）寄付き")
+    weekdays = ['月', '火', '水', '木', '金', '土', '日']
 
-    st.markdown("---")
+    # 情報カード
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="info-card">
+            <div class="info-card-label">シグナル日</div>
+            <div class="info-card-value">{selected_ts.strftime('%Y/%m/%d')} ({weekdays[selected_ts.weekday()]})</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="info-card">
+            <div class="info-card-label">エントリー日</div>
+            <div class="info-card-value">{entry_date.strftime('%Y/%m/%d')} ({weekdays[entry_date.weekday()]}) 寄付</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div class="info-card">
+            <div class="info-card-label">候補銘柄</div>
+            <div class="info-card-value">{len(day_predictions)} 銘柄</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # 結果表示
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 結果
     if len(day_predictions) == 0:
         st.warning("この日の予測データがありません。")
     else:
-        # プログレスバー
+        st.markdown('<div class="section-title">上昇予測ランキング</div>', unsafe_allow_html=True)
+
         progress_bar = st.progress(0)
         status_text = st.empty()
 
@@ -208,55 +476,42 @@ def main():
             ticker = row['ticker']
             code = ticker.replace('.T', '')
 
-            status_text.text(f"データ取得中... {code}")
+            status_text.text(f"取得中: {code}")
             progress_bar.progress((i + 1) / top_n)
 
-            name, open_price, close_price, reason = get_stock_info(ticker)
+            name, _, close_price, reason = get_stock_info(ticker)
 
             results.append({
-                '順位': i + 1,
-                'コード': code,
-                '会社名': name[:20] if len(name) > 20 else name,
-                'スコア': f"{row['score']:.4f}",
-                '終値': f"¥{close_price:,.0f}" if close_price else 'N/A',
-                '買い理由': reason
+                'rank': i + 1,
+                'code': code,
+                'name': name[:20] if len(name) > 20 else name,
+                'score': row['score'],
+                'price': close_price,
+                'reason': reason
             })
 
         progress_bar.empty()
         status_text.empty()
 
-        # テーブル表示
-        df_results = pd.DataFrame(results)
-        st.dataframe(
-            df_results,
-            hide_index=True,
-            use_container_width=True
-        )
+        col1, col2 = st.columns(2)
+        for i, result in enumerate(results):
+            with col1 if i % 2 == 0 else col2:
+                render_stock_card(
+                    result['rank'],
+                    result['code'],
+                    result['name'],
+                    result['score'],
+                    result['price'],
+                    result['reason']
+                )
 
-        # 注意書き
-        st.markdown("---")
-        st.caption("""
-        **注意事項**
-        - このシステムは過去データに基づく機械学習モデルの予測であり、将来の株価を保証するものではありません
-        - 投資判断は自己責任でお願いします
-        - 終値は直近取引日のデータです
-        """)
-
-        # 買い理由の凡例
-        with st.expander("買い理由の説明"):
-            st.markdown("""
-            | 理由 | 説明 |
-            |------|------|
-            | RSI=XX(売られ過ぎ) | RSI30未満で売られ過ぎ水準 |
-            | RSI=XX(低め) | RSI40未満で低め |
-            | 52週安値圏 | 52週レンジの下位20%以内 |
-            | 安値圏 | 52週レンジの下位35%以内 |
-            | X日続落 | 連続下落日数 |
-            | 5日で-X% | 直近5日間の下落率 |
-            | 出来高X倍 | 20日平均比の出来高 |
-            | BB下限割れ | ボリンジャーバンド下限を下回る |
-            | MLスコア高 | 機械学習モデルのスコアが主因 |
-            """)
+        st.markdown("""
+        <div class="disclaimer">
+            <strong>注意事項</strong><br>
+            本システムは過去データに基づく機械学習モデルの予測です。将来の株価を保証するものではありません。
+            投資判断は自己責任でお願いします。
+        </div>
+        """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
