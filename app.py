@@ -10,7 +10,7 @@ import yfinance as yf
 
 # ページ設定
 st.set_page_config(
-    page_title="株価上昇予測",
+    page_title="StockSignal",
     page_icon="📈",
     layout="wide"
 )
@@ -358,8 +358,8 @@ def main():
     # ヘッダー
     st.markdown("""
     <div class="main-header">
-        <h1>株価上昇予測システム</h1>
-        <p>LightGBMモデルによる短期上昇候補の検出</p>
+        <h1>StockSignal</h1>
+        <p>短期上昇シグナル検出</p>
     </div>
     """, unsafe_allow_html=True)
 
