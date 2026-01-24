@@ -573,36 +573,7 @@ def get_stock_card_html(rank, code, name, score, open_price, close_price, reason
         else:
             reason_tags += f'<span class="tag">{r_escaped}</span>'
 
-    return f"""
-    <div class="stock-card {top_class}">
-        <div class="stock-main">
-            <div class="stock-info">
-                <div class="stock-rank {rank_class}">{rank}</div>
-                <div class="stock-text">
-                    <div class="stock-name-main">{display_name}</div>
-                    <div class="stock-code-sub">{code}{sector_html}</div>
-                </div>
-            </div>
-            <div class="score-container">
-                <div class="score-value">{score:.2f}</div>
-            </div>
-        </div>
-        <div class="stock-prices">
-            <div class="meta-item">
-                <span class="meta-label">始値</span>
-                <span class="meta-value">{open_str}</span>
-            </div>
-            <div class="meta-item">
-                <span class="meta-label">終値</span>
-                <span class="meta-value">{close_str}</span>
-            </div>
-        </div>
-        <div class="stock-footer">
-            <div class="stock-tags">{reason_tags}</div>
-            <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
-        </div>
-    </div>
-    """
+    return f'<div class="stock-card {top_class}"><div class="stock-main"><div class="stock-info"><div class="stock-rank {rank_class}">{rank}</div><div class="stock-text"><div class="stock-name-main">{display_name}</div><div class="stock-code-sub">{code}{sector_html}</div></div></div><div class="score-container"><div class="score-value">{score:.2f}</div></div></div><div class="stock-prices"><div class="meta-item"><span class="meta-label">始値</span><span class="meta-value">{open_str}</span></div><div class="meta-item"><span class="meta-label">終値</span><span class="meta-value">{close_str}</span></div></div><div class="stock-footer"><div class="stock-tags">{reason_tags}</div><a href="{yahoo_url}" target="_blank" class="link">詳細 →</a></div></div>'
 
 
 def main():
