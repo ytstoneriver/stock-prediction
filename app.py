@@ -444,13 +444,13 @@ def load_predictions():
 
 
 @st.cache_data(ttl=300)
-def get_stock_info(ticker: str):
+def get_stock_info(ticker: str, signal_date: str = None):
     code = ticker.replace('.T', '')
 
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        hist = stock.history(period='60d')
+        hist = stock.history(period='90d')
 
         # 日本語名を取得（Yahoo Financeから）
         name = fetch_company_name_from_yahoo(code)
@@ -464,8 +464,22 @@ def get_stock_info(ticker: str):
         if len(hist) < 20:
             return name, None, None, 'データ不足', sector
 
-        open_price = hist.iloc[-1]['Open']
-        close_price = hist.iloc[-1]['Close']
+        # シグナル日の価格を取得
+        if signal_date:
+            hist.index = hist.index.tz_localize(None)
+            target_date = pd.Timestamp(signal_date)
+            if target_date in hist.index:
+                open_price = hist.loc[target_date]['Open']
+                close_price = hist.loc[target_date]['Close']
+            else:
+                # 最も近い日付を探す
+                closest_idx = hist.index.get_indexer([target_date], method='nearest')[0]
+                open_price = hist.iloc[closest_idx]['Open']
+                close_price = hist.iloc[closest_idx]['Close']
+        else:
+            open_price = hist.iloc[-1]['Open']
+            close_price = hist.iloc[-1]['Close']
+
         reasons = []
 
         # RSI
@@ -686,7 +700,7 @@ def main():
         status.text(f"取得中: {code}")
         progress.progress((i + 1) / top_n)
 
-        name, open_price, close_price, reason, sector = get_stock_info(ticker)
+        name, open_price, close_price, reason, sector = get_stock_info(ticker, str(selected_ts.date()))
         results.append({
             'rank': i + 1,
             'code': code,
