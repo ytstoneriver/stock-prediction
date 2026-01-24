@@ -19,160 +19,154 @@ st.set_page_config(
 st.markdown("""
 <style>
     /* フォント */
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'Noto Sans JP', sans-serif;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
     /* メインコンテナ */
     .main > div {
         padding-top: 1rem;
+        max-width: 1200px;
     }
 
     /* ヘッダー */
     .main-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 2.5rem 2rem;
-        border-radius: 16px;
+        border-bottom: 1px solid #e5e5e5;
+        padding: 0 0 1.5rem 0;
         margin-bottom: 2rem;
-        color: white;
     }
     .main-header h1 {
         margin: 0;
-        font-size: 1.75rem;
-        font-weight: 700;
-        letter-spacing: -0.02em;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #171717;
+        letter-spacing: -0.025em;
     }
     .main-header p {
-        margin: 0.5rem 0 0 0;
-        opacity: 0.7;
-        font-size: 0.9rem;
+        margin: 0.25rem 0 0 0;
+        color: #737373;
+        font-size: 0.875rem;
         font-weight: 400;
     }
 
     /* 情報カード */
     .info-card {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 1.25rem 1.5rem;
-        border: 1px solid #e2e8f0;
+        background: #fafafa;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
         margin-bottom: 1rem;
     }
     .info-card-label {
-        color: #64748b;
-        font-size: 0.75rem;
+        color: #737373;
+        font-size: 0.7rem;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.375rem;
     }
     .info-card-value {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #0f172a;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #171717;
     }
 
     /* 銘柄カード */
     .stock-card {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 1.25rem;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 0.75rem;
-        transition: all 0.2s ease;
+        background: #fff;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        border: 1px solid #e5e5e5;
+        margin-bottom: 0.5rem;
     }
     .stock-card:hover {
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-color: #d4d4d4;
     }
     .stock-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 1rem;
+        margin-bottom: 0.75rem;
     }
     .stock-rank {
-        background: #0f172a;
-        color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 8px;
+        background: #171717;
+        color: #fff;
+        min-width: 24px;
+        height: 24px;
+        border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-weight: 700;
-        font-size: 0.8rem;
+        font-weight: 600;
+        font-size: 0.75rem;
     }
     .stock-code {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 600;
+        color: #171717;
     }
     .stock-name {
-        color: #64748b;
-        font-size: 0.8rem;
+        color: #737373;
+        font-size: 0.75rem;
         margin-top: 0.125rem;
     }
     .stock-score {
-        background: #ecfdf5;
-        color: #059669;
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
+        background: #f0fdf4;
+        color: #15803d;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
         font-weight: 600;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
     }
     .stock-meta {
         display: flex;
-        gap: 1.5rem;
+        gap: 1rem;
         flex-wrap: wrap;
         align-items: center;
     }
     .stock-price {
         font-weight: 600;
-        color: #0f172a;
+        color: #171717;
+        font-size: 0.875rem;
     }
     .stock-price-label {
-        color: #94a3b8;
+        color: #a3a3a3;
         font-size: 0.7rem;
         margin-right: 0.25rem;
     }
     .stock-reason {
-        background: #fef3c7;
-        color: #92400e;
-        padding: 0.25rem 0.625rem;
+        background: #fafafa;
+        color: #525252;
+        padding: 0.25rem 0.5rem;
         border-radius: 4px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 500;
+        border: 1px solid #e5e5e5;
     }
 
     /* サイドバー */
     [data-testid="stSidebar"] {
-        background: #f8fafc;
+        background: #fafafa;
     }
     [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
-        font-size: 0.875rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        color: #475569;
+        color: #525252;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
 
     /* セクションタイトル */
     .section-title {
-        font-size: 1rem;
+        font-size: 0.875rem;
         font-weight: 600;
-        color: #0f172a;
+        color: #171717;
         margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e2e8f0;
     }
 
     /* モバイル対応 */
     @media (max-width: 768px) {
-        .main-header {
-            padding: 1.5rem;
-        }
         .main-header h1 {
             font-size: 1.25rem;
         }
@@ -180,10 +174,10 @@ st.markdown("""
             gap: 0.75rem;
         }
         .stock-card {
-            padding: 1rem;
+            padding: 0.875rem 1rem;
         }
         .info-card {
-            padding: 1rem;
+            padding: 0.875rem 1rem;
         }
         .info-card-value {
             font-size: 1rem;
@@ -192,22 +186,21 @@ st.markdown("""
 
     /* プログレスバー */
     .stProgress > div > div {
-        background: #0f172a;
+        background: #171717;
     }
 
     /* 注意書き */
     .disclaimer {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
-        font-size: 0.8rem;
-        color: #64748b;
+        background: #fafafa;
+        border-radius: 6px;
+        padding: 1rem;
+        font-size: 0.75rem;
+        color: #737373;
         margin-top: 2rem;
         line-height: 1.6;
     }
     .disclaimer strong {
-        color: #475569;
+        color: #525252;
     }
 
     /* ルールカード */
@@ -215,23 +208,23 @@ st.markdown("""
         display: flex;
         justify-content: space-between;
         padding: 0.5rem 0;
-        border-bottom: 1px solid #e2e8f0;
-        font-size: 0.875rem;
+        border-bottom: 1px solid #e5e5e5;
+        font-size: 0.8rem;
     }
     .rule-item:last-child {
         border-bottom: none;
     }
     .rule-label {
-        color: #64748b;
+        color: #737373;
     }
     .rule-value {
         font-weight: 600;
-        color: #0f172a;
+        color: #171717;
     }
 
     /* Streamlitデフォルトの調整 */
     .stSlider label {
-        font-size: 0.875rem !important;
+        font-size: 0.8rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
