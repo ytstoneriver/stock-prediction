@@ -24,20 +24,36 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    .main > div {
-        padding-top: 1rem;
-        max-width: 1200px;
+    /* ページ背景 */
+    .stApp {
+        background: #fcfcfc;
     }
 
-    /* 背景パターン */
+    .main > div {
+        padding-top: 2rem;
+        max-width: 1100px;
+    }
+
+    /* 背景装飾 */
     .main::before {
         content: '';
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 280px;
-        background: linear-gradient(180deg, #fafafa 0%, transparent 100%);
+        top: -50%;
+        right: -20%;
+        width: 800px;
+        height: 800px;
+        background: radial-gradient(circle, rgba(0,0,0,0.02) 0%, transparent 70%);
+        pointer-events: none;
+        z-index: -1;
+    }
+    .main::after {
+        content: '';
+        position: fixed;
+        bottom: -30%;
+        left: -10%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(0,0,0,0.015) 0%, transparent 70%);
         pointer-events: none;
         z-index: -1;
     }
@@ -46,43 +62,41 @@ st.markdown("""
     .main-header {
         display: flex;
         align-items: center;
-        gap: 1rem;
-        padding: 0 0 2rem 0;
-        margin-bottom: 2rem;
-        border-bottom: 1px solid #e5e5e5;
+        gap: 1.25rem;
+        padding: 1rem 0 2.5rem 0;
+        margin-bottom: 2.5rem;
+        border-bottom: 1px solid #ebebeb;
     }
     .logo-mark {
         position: relative;
-        width: 44px;
-        height: 44px;
+        width: 48px;
+        height: 48px;
         flex-shrink: 0;
     }
-    .main-header h1 {
+    .header-text h1 {
         margin: 0;
-        font-size: 1.375rem;
+        font-size: 1.5rem;
         font-weight: 600;
-        color: #171717;
+        color: #0a0a0a;
         letter-spacing: -0.03em;
     }
-    .main-header p {
-        margin: 0.25rem 0 0 0;
-        color: #a3a3a3;
+    .header-text p {
+        margin: 0.375rem 0 0 0;
+        color: #888;
         font-size: 0.8rem;
-        letter-spacing: 0.01em;
+        letter-spacing: 0.02em;
     }
 
     /* 統計 */
     .stats-container {
         display: flex;
-        gap: 2.5rem;
-        margin-bottom: 2rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 1px solid #e5e5e5;
+        gap: 3rem;
+        margin-bottom: 2.5rem;
     }
     @media (max-width: 768px) {
         .stats-container {
             flex-direction: column;
-            gap: 1rem;
+            gap: 1.25rem;
         }
     }
     .stat-item {
@@ -90,17 +104,17 @@ st.markdown("""
         flex-direction: column;
     }
     .stat-label {
-        color: #a3a3a3;
-        font-size: 0.7rem;
+        color: #999;
+        font-size: 0.65rem;
         font-weight: 500;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.25rem;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.375rem;
     }
     .stat-value {
-        font-size: 1rem;
+        font-size: 1.125rem;
         font-weight: 600;
-        color: #171717;
+        color: #0a0a0a;
         white-space: nowrap;
     }
 
@@ -124,26 +138,30 @@ st.markdown("""
     /* 銘柄カード */
     .stock-card {
         background: #fff;
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
-        border: 1px solid #e5e5e5;
-        margin-bottom: 0.5rem;
-        transition: border-color 0.15s;
+        border-radius: 12px;
+        padding: 1.25rem 1.5rem;
+        border: 1px solid #eee;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
         min-height: 120px;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
     }
     .stock-card:hover {
-        border-color: #d4d4d4;
+        border-color: #ddd;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+        transform: translateY(-1px);
     }
     .stock-card.top-1 {
-        border-left: 3px solid #171717;
+        border-left: 3px solid #0a0a0a;
+        background: linear-gradient(135deg, #fff 0%, #fafafa 100%);
     }
     .stock-card.top-2 {
-        border-left: 3px solid #525252;
+        border-left: 3px solid #444;
     }
     .stock-card.top-3 {
-        border-left: 3px solid #a3a3a3;
+        border-left: 3px solid #888;
     }
 
     .stock-main {
@@ -327,13 +345,18 @@ st.markdown("""
 
     /* 注意書き */
     .disclaimer {
-        background: #fafafa;
-        border-radius: 6px;
-        padding: 1rem;
-        font-size: 0.75rem;
-        color: #737373;
-        margin-top: 2rem;
-        line-height: 1.6;
+        background: transparent;
+        border-top: 1px solid #eee;
+        border-radius: 0;
+        padding: 2rem 0 1rem 0;
+        font-size: 0.7rem;
+        color: #999;
+        margin-top: 3rem;
+        line-height: 1.7;
+    }
+    .disclaimer strong {
+        color: #666;
+        font-weight: 500;
     }
 
     /* プログレスバー */
@@ -538,15 +561,16 @@ def main():
     st.markdown("""
     <div class="main-header">
         <div class="logo-mark">
-            <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="4" y="4" width="16" height="16" fill="#171717"/>
-                <rect x="24" y="4" width="16" height="16" fill="#d4d4d4"/>
-                <rect x="4" y="24" width="16" height="16" fill="#a3a3a3"/>
-                <rect x="24" y="24" width="16" height="16" fill="#525252"/>
-                <rect x="14" y="14" width="16" height="16" fill="none" stroke="#171717" stroke-width="1.5"/>
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- フラクタル三角形（シェルピンスキー風） -->
+                <polygon points="24,4 44,40 4,40" fill="none" stroke="#0a0a0a" stroke-width="1.5"/>
+                <polygon points="24,16 34,34 14,34" fill="none" stroke="#0a0a0a" stroke-width="1"/>
+                <polygon points="14,28 19,37 9,37" fill="#0a0a0a"/>
+                <polygon points="24,22 29,31 19,31" fill="#666"/>
+                <polygon points="34,28 39,37 29,37" fill="#aaa"/>
             </svg>
         </div>
-        <div>
+        <div class="header-text">
             <h1>StockSignal</h1>
             <p>短期上昇シグナル検出</p>
         </div>
