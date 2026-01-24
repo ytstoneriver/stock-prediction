@@ -548,27 +548,30 @@ def render_skeleton():
 
 
 def get_stock_card_html(rank, code, name, score, open_price, close_price, reason, sector):
+    import html
     open_str = f"¥{open_price:,.0f}" if open_price else "-"
     close_str = f"¥{close_price:,.0f}" if close_price else "-"
     top_class = f"top-{rank}" if rank <= 3 else ""
     rank_class = f"top-{rank}" if rank <= 3 else ""
     yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
-    display_name = name if name else code
-    sector_html = f'<span class="sector">{sector}</span>' if sector else ''
+    display_name = html.escape(name) if name else code
+    sector_escaped = html.escape(sector) if sector else ''
+    sector_html = f'<span class="sector">{sector_escaped}</span>' if sector else ''
 
     # 理由のツールチップ用説明を生成
     reason_parts = reason.split(', ')
     reason_tags = ''
     for r in reason_parts:
+        r_escaped = html.escape(r)
         tooltip = ''
         for key, desc in REASON_HELP.items():
             if key in r:
-                tooltip = desc
+                tooltip = html.escape(desc)
                 break
         if tooltip:
-            reason_tags += f'<span class="tag" title="{tooltip}">{r}</span>'
+            reason_tags += f'<span class="tag" title="{tooltip}">{r_escaped}</span>'
         else:
-            reason_tags += f'<span class="tag">{r}</span>'
+            reason_tags += f'<span class="tag">{r_escaped}</span>'
 
     return f"""
     <div class="stock-card {top_class}">
