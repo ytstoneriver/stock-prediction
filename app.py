@@ -1,5 +1,5 @@
 """
-株価上昇予測システム - Streamlit App
+StockSignal - 短期上昇シグナル検出
 """
 import streamlit as st
 import pandas as pd
@@ -18,14 +18,12 @@ st.set_page_config(
 # カスタムCSS
 st.markdown("""
 <style>
-    /* フォント */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* メインコンテナ */
     .main > div {
         padding-top: 1rem;
         max-width: 1200px;
@@ -48,28 +46,54 @@ st.markdown("""
         margin: 0.25rem 0 0 0;
         color: #737373;
         font-size: 0.875rem;
-        font-weight: 400;
     }
 
-    /* 情報カード */
-    .info-card {
+    /* 統計カード */
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    @media (max-width: 768px) {
+        .stats-container {
+            grid-template-columns: 1fr;
+        }
+    }
+    .stat-card {
         background: #fafafa;
         border-radius: 8px;
         padding: 1rem 1.25rem;
-        margin-bottom: 1rem;
     }
-    .info-card-label {
+    .stat-label {
         color: #737373;
         font-size: 0.7rem;
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        margin-bottom: 0.375rem;
+        margin-bottom: 0.25rem;
     }
-    .info-card-value {
+    .stat-value {
         font-size: 1.125rem;
         font-weight: 600;
         color: #171717;
+    }
+
+    /* セクション */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #171717;
+    }
+    .section-subtitle {
+        font-size: 0.75rem;
+        color: #737373;
     }
 
     /* 銘柄カード */
@@ -79,15 +103,31 @@ st.markdown("""
         padding: 1rem 1.25rem;
         border: 1px solid #e5e5e5;
         margin-bottom: 0.5rem;
+        transition: border-color 0.15s;
     }
     .stock-card:hover {
         border-color: #d4d4d4;
     }
-    .stock-header {
+    .stock-card.top-1 {
+        border-left: 3px solid #171717;
+    }
+    .stock-card.top-2 {
+        border-left: 3px solid #525252;
+    }
+    .stock-card.top-3 {
+        border-left: 3px solid #a3a3a3;
+    }
+
+    .stock-main {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 0.75rem;
+    }
+    .stock-info {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
     }
     .stock-rank {
         background: #171717;
@@ -101,6 +141,10 @@ st.markdown("""
         font-weight: 600;
         font-size: 0.75rem;
     }
+    .stock-rank.top-1 { background: #171717; }
+    .stock-rank.top-2 { background: #404040; }
+    .stock-rank.top-3 { background: #737373; }
+
     .stock-code {
         font-size: 1rem;
         font-weight: 600;
@@ -111,39 +155,97 @@ st.markdown("""
         font-size: 0.75rem;
         margin-top: 0.125rem;
     }
-    .stock-score {
-        background: #f0fdf4;
-        color: #15803d;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 0.75rem;
+
+    /* スコア */
+    .score-container {
+        text-align: right;
     }
-    .stock-meta {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-    .stock-price {
+    .score-value {
+        font-size: 0.875rem;
         font-weight: 600;
         color: #171717;
-        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
     }
-    .stock-price-label {
+    .score-bar {
+        width: 60px;
+        height: 4px;
+        background: #e5e5e5;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    .score-fill {
+        height: 100%;
+        background: #171717;
+        border-radius: 2px;
+    }
+
+    /* メタ情報 */
+    .stock-meta {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    .meta-label {
         color: #a3a3a3;
         font-size: 0.7rem;
-        margin-right: 0.25rem;
     }
-    .stock-reason {
+    .meta-value {
+        font-weight: 500;
+        color: #171717;
+        font-size: 0.8rem;
+    }
+    .tag {
         background: #fafafa;
         color: #525252;
-        padding: 0.25rem 0.5rem;
+        padding: 0.2rem 0.5rem;
         border-radius: 4px;
         font-size: 0.7rem;
         font-weight: 500;
         border: 1px solid #e5e5e5;
     }
+    .link {
+        color: #737373;
+        font-size: 0.7rem;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .link:hover {
+        color: #171717;
+    }
+
+    /* スケルトン */
+    .skeleton {
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4px;
+    }
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    .skeleton-card {
+        background: #fff;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        border: 1px solid #e5e5e5;
+        margin-bottom: 0.5rem;
+    }
+    .skeleton-line {
+        height: 12px;
+        margin-bottom: 0.5rem;
+    }
+    .skeleton-line.w-20 { width: 20%; }
+    .skeleton-line.w-40 { width: 40%; }
+    .skeleton-line.w-60 { width: 60%; }
 
     /* サイドバー */
     [data-testid="stSidebar"] {
@@ -157,37 +259,16 @@ st.markdown("""
         letter-spacing: 0.05em;
     }
 
-    /* セクションタイトル */
-    .section-title {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #171717;
-        margin-bottom: 1rem;
+    .rule-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e5e5e5;
+        font-size: 0.8rem;
     }
-
-    /* モバイル対応 */
-    @media (max-width: 768px) {
-        .main-header h1 {
-            font-size: 1.25rem;
-        }
-        .stock-meta {
-            gap: 0.75rem;
-        }
-        .stock-card {
-            padding: 0.875rem 1rem;
-        }
-        .info-card {
-            padding: 0.875rem 1rem;
-        }
-        .info-card-value {
-            font-size: 1rem;
-        }
-    }
-
-    /* プログレスバー */
-    .stProgress > div > div {
-        background: #171717;
-    }
+    .rule-item:last-child { border-bottom: none; }
+    .rule-label { color: #737373; }
+    .rule-value { font-weight: 600; color: #171717; }
 
     /* 注意書き */
     .disclaimer {
@@ -199,44 +280,27 @@ st.markdown("""
         margin-top: 2rem;
         line-height: 1.6;
     }
-    .disclaimer strong {
-        color: #525252;
+
+    /* プログレスバー */
+    .stProgress > div > div {
+        background: #171717;
     }
 
-    /* ルールカード */
-    .rule-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #e5e5e5;
-        font-size: 0.8rem;
-    }
-    .rule-item:last-child {
-        border-bottom: none;
-    }
-    .rule-label {
-        color: #737373;
-    }
-    .rule-value {
-        font-weight: 600;
-        color: #171717;
-    }
-
-    /* Streamlitデフォルトの調整 */
-    .stSlider label {
-        font-size: 0.8rem !important;
+    /* モバイル */
+    @media (max-width: 768px) {
+        .main-header h1 { font-size: 1.25rem; }
+        .stock-meta { gap: 0.75rem; }
+        .stock-card { padding: 0.875rem 1rem; }
+        .score-bar { width: 48px; }
     }
 </style>
 """, unsafe_allow_html=True)
 
-# データディレクトリ
 DATA_DIR = Path(__file__).parent / "data"
-MODEL_DIR = Path(__file__).parent / "models"
 
 
 @st.cache_data(ttl=3600)
 def load_predictions():
-    """予測データを読み込み"""
     pred_path = DATA_DIR / "app_predictions.parquet"
     if not pred_path.exists():
         pred_path = DATA_DIR / "test_predictions.parquet"
@@ -249,21 +313,16 @@ def load_predictions():
 
 @st.cache_data(ttl=300)
 def get_stock_info(ticker: str):
-    """株価情報と買い理由を取得"""
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-
         name = info.get('shortName') or info.get('longName') or 'N/A'
 
         hist = stock.history(period='60d')
         if len(hist) < 20:
             return name, None, None, 'データ不足'
 
-        last_row = hist.iloc[-1]
-        open_price = last_row['Open']
-        close_price = last_row['Close']
-
+        close_price = hist.iloc[-1]['Close']
         reasons = []
 
         # RSI
@@ -278,7 +337,7 @@ def get_stock_info(ticker: str):
         elif current_rsi < 40:
             reasons.append(f'RSI {current_rsi:.0f}')
 
-        # 52週安値
+        # 位置
         low_52w = hist['Low'].min()
         high_52w = hist['High'].max()
         position = (close_price - low_52w) / (high_52w - low_52w) * 100 if high_52w > low_52w else 50
@@ -289,66 +348,73 @@ def get_stock_info(ticker: str):
 
         # 連続下落
         returns = hist['Close'].pct_change()
-        consecutive_down = 0
-        for r in returns.iloc[-5:]:
-            if r < 0:
-                consecutive_down += 1
-            else:
-                consecutive_down = 0
+        consecutive_down = sum(1 for r in returns.iloc[-5:] if r < 0)
         if consecutive_down >= 3:
             reasons.append(f'{consecutive_down}日続落')
 
-        # 出来高
-        vol_ma = hist['Volume'].rolling(20).mean()
-        if len(vol_ma) > 0 and vol_ma.iloc[-1] > 0:
-            vol_ratio = hist['Volume'].iloc[-1] / vol_ma.iloc[-1]
-            if vol_ratio > 2.0:
-                reasons.append(f'出来高{vol_ratio:.1f}x')
-
         # 下落率
         ret_5d = (close_price / hist['Close'].iloc[-6] - 1) * 100 if len(hist) >= 6 else 0
-        if ret_5d < -10:
-            reasons.append(f'{ret_5d:.0f}% / 5d')
-        elif ret_5d < -5:
-            reasons.append(f'{ret_5d:.0f}% / 5d')
+        if ret_5d < -5:
+            reasons.append(f'{ret_5d:.0f}%/5d')
 
         if not reasons:
-            reasons.append('ML Score')
+            reasons.append('ML判定')
 
-        return name, open_price, close_price, ', '.join(reasons[:2])
+        return name, close_price, ', '.join(reasons[:2]), None
 
     except Exception as e:
-        return 'N/A', None, None, '-'
+        return 'N/A', None, '-', str(e)
+
+
+def render_skeleton():
+    st.markdown("""
+    <div class="skeleton-card">
+        <div class="skeleton skeleton-line w-40"></div>
+        <div class="skeleton skeleton-line w-60"></div>
+        <div class="skeleton skeleton-line w-20"></div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def render_stock_card(rank, code, name, score, price, reason):
-    """銘柄カードをレンダリング"""
     price_str = f"¥{price:,.0f}" if price else "-"
+    score_pct = min(score * 100, 100)
+    top_class = f"top-{rank}" if rank <= 3 else ""
+    rank_class = f"top-{rank}" if rank <= 3 else ""
+    yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
+
     st.markdown(f"""
-    <div class="stock-card">
-        <div class="stock-header">
-            <div style="display: flex; align-items: center; gap: 0.875rem;">
-                <div class="stock-rank">{rank}</div>
+    <div class="stock-card {top_class}">
+        <div class="stock-main">
+            <div class="stock-info">
+                <div class="stock-rank {rank_class}">{rank}</div>
                 <div>
                     <div class="stock-code">{code}</div>
                     <div class="stock-name">{name}</div>
                 </div>
             </div>
-            <div class="stock-score">{score:.2f}</div>
+            <div class="score-container">
+                <div class="score-value">{score:.2f}</div>
+                <div class="score-bar">
+                    <div class="score-fill" style="width: {score_pct}%"></div>
+                </div>
+            </div>
         </div>
         <div class="stock-meta">
-            <div>
-                <span class="stock-price-label">終値</span>
-                <span class="stock-price">{price_str}</span>
+            <div class="meta-item">
+                <span class="meta-label">終値</span>
+                <span class="meta-value">{price_str}</span>
             </div>
-            <div class="stock-reason">{reason}</div>
+            <div class="tag">{reason}</div>
+            <a href="{yahoo_url}" target="_blank" class="link">
+                Yahoo Finance →
+            </a>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 
 def main():
-    # ヘッダー
     st.markdown("""
     <div class="main-header">
         <h1>StockSignal</h1>
@@ -356,9 +422,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # データ読み込み
     predictions = load_predictions()
-
     if predictions is None:
         st.error("予測データが見つかりません。")
         st.stop()
@@ -368,7 +432,6 @@ def main():
     # サイドバー
     with st.sidebar:
         st.markdown("### 設定")
-
         min_date = pd.Timestamp(available_dates[0]).date()
         max_date = pd.Timestamp(available_dates[-1]).date()
 
@@ -378,43 +441,23 @@ def main():
             min_value=min_date,
             max_value=max_date
         )
-
         top_n = st.slider("表示件数", 5, 30, 10)
 
         st.markdown("---")
         st.markdown("### 売買ルール")
         st.markdown("""
-        <div class="rule-item">
-            <span class="rule-label">利確</span>
-            <span class="rule-value">+12%</span>
-        </div>
-        <div class="rule-item">
-            <span class="rule-label">損切り</span>
-            <span class="rule-value">ATR × 2.0</span>
-        </div>
-        <div class="rule-item">
-            <span class="rule-label">最大保有</span>
-            <span class="rule-value">15日</span>
-        </div>
+        <div class="rule-item"><span class="rule-label">利確</span><span class="rule-value">+12%</span></div>
+        <div class="rule-item"><span class="rule-label">損切り</span><span class="rule-value">ATR × 2.0</span></div>
+        <div class="rule-item"><span class="rule-label">最大保有</span><span class="rule-value">15日</span></div>
         """, unsafe_allow_html=True)
 
         st.markdown("---")
         with st.expander("更新方法"):
-            st.markdown("""
-            **データ更新**
-            ```
-            python scripts/phase1_data_check.py
-            python scripts/phase2_train.py
-            python scripts/phase3_backtest.py
-            ```
-
-            **デプロイ更新**
-            GitHubへpushで自動反映
-            """)
+            st.code("python scripts/phase1_data_check.py\npython scripts/phase2_train.py\npython scripts/phase3_backtest.py", language="bash")
+            st.caption("GitHubへpushで自動デプロイ")
 
     # メイン
     selected_ts = pd.Timestamp(selected_date)
-
     if selected_ts not in [pd.Timestamp(d) for d in available_dates]:
         closest_date = min(available_dates, key=lambda x: abs(pd.Timestamp(x) - selected_ts))
         st.warning(f"{closest_date.strftime('%Y-%m-%d')} を表示")
@@ -429,82 +472,71 @@ def main():
 
     weekdays = ['月', '火', '水', '木', '金', '土', '日']
 
-    # 情報カード
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(f"""
-        <div class="info-card">
-            <div class="info-card-label">シグナル日</div>
-            <div class="info-card-value">{selected_ts.strftime('%Y/%m/%d')} ({weekdays[selected_ts.weekday()]})</div>
+    # 統計カード
+    st.markdown(f"""
+    <div class="stats-container">
+        <div class="stat-card">
+            <div class="stat-label">シグナル日</div>
+            <div class="stat-value">{selected_ts.strftime('%Y/%m/%d')} ({weekdays[selected_ts.weekday()]})</div>
         </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div class="info-card">
-            <div class="info-card-label">エントリー日</div>
-            <div class="info-card-value">{entry_date.strftime('%Y/%m/%d')} ({weekdays[entry_date.weekday()]}) 寄付</div>
+        <div class="stat-card">
+            <div class="stat-label">エントリー</div>
+            <div class="stat-value">{entry_date.strftime('%Y/%m/%d')} ({weekdays[entry_date.weekday()]}) 寄付</div>
         </div>
-        """, unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"""
-        <div class="info-card">
-            <div class="info-card-label">候補銘柄</div>
-            <div class="info-card-value">{len(day_predictions)} 銘柄</div>
+        <div class="stat-card">
+            <div class="stat-label">検出銘柄</div>
+            <div class="stat-value">{len(day_predictions)} 銘柄</div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # 結果
     if len(day_predictions) == 0:
-        st.warning("この日の予測データがありません。")
-    else:
-        st.markdown('<div class="section-title">上昇予測ランキング</div>', unsafe_allow_html=True)
+        st.info("この日の予測データがありません。")
+        return
 
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+    # セクションヘッダー
+    st.markdown(f"""
+    <div class="section-header">
+        <span class="section-title">上昇予測ランキング</span>
+        <span class="section-subtitle">スコア順 Top {top_n}</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-        results = []
-        for i, (_, row) in enumerate(day_predictions.head(top_n).iterrows()):
-            ticker = row['ticker']
-            code = ticker.replace('.T', '')
+    # ローディング
+    progress = st.progress(0)
+    status = st.empty()
 
-            status_text.text(f"取得中: {code}")
-            progress_bar.progress((i + 1) / top_n)
+    results = []
+    for i, (_, row) in enumerate(day_predictions.head(top_n).iterrows()):
+        ticker = row['ticker']
+        code = ticker.replace('.T', '')
+        status.text(f"取得中: {code}")
+        progress.progress((i + 1) / top_n)
 
-            name, _, close_price, reason = get_stock_info(ticker)
+        name, close_price, reason, _ = get_stock_info(ticker)
+        results.append({
+            'rank': i + 1,
+            'code': code,
+            'name': name[:18] if name and len(name) > 18 else name,
+            'score': row['score'],
+            'price': close_price,
+            'reason': reason
+        })
 
-            results.append({
-                'rank': i + 1,
-                'code': code,
-                'name': name[:20] if len(name) > 20 else name,
-                'score': row['score'],
-                'price': close_price,
-                'reason': reason
-            })
+    progress.empty()
+    status.empty()
 
-        progress_bar.empty()
-        status_text.empty()
+    # 2カラムレイアウト
+    col1, col2 = st.columns(2)
+    for i, r in enumerate(results):
+        with col1 if i % 2 == 0 else col2:
+            render_stock_card(r['rank'], r['code'], r['name'], r['score'], r['price'], r['reason'])
 
-        col1, col2 = st.columns(2)
-        for i, result in enumerate(results):
-            with col1 if i % 2 == 0 else col2:
-                render_stock_card(
-                    result['rank'],
-                    result['code'],
-                    result['name'],
-                    result['score'],
-                    result['price'],
-                    result['reason']
-                )
-
-        st.markdown("""
-        <div class="disclaimer">
-            <strong>注意事項</strong><br>
-            本システムは過去データに基づく機械学習モデルの予測です。将来の株価を保証するものではありません。
-            投資判断は自己責任でお願いします。
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("""
+    <div class="disclaimer">
+        <strong>注意</strong> — 本システムは機械学習モデルによる予測であり、将来の株価を保証するものではありません。投資判断は自己責任でお願いします。
+    </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
