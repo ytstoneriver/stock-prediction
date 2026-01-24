@@ -168,6 +168,17 @@ st.markdown("""
         color: #737373;
         font-size: 0.75rem;
         margin-top: 0.125rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .sector {
+        color: #a3a3a3;
+        font-size: 0.7rem;
+    }
+    .sector::before {
+        content: '·';
+        margin-right: 0.25rem;
     }
 
     /* スコア */
@@ -212,6 +223,23 @@ st.markdown("""
         font-size: 0.7rem;
         font-weight: 500;
         border: 1px solid #e5e5e5;
+        cursor: help;
+        position: relative;
+    }
+    .tag[title]:hover::after {
+        content: attr(title);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #171717;
+        color: #fff;
+        padding: 0.375rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        white-space: nowrap;
+        z-index: 100;
+        margin-bottom: 4px;
     }
     .link {
         color: #737373;
@@ -300,8 +328,30 @@ st.markdown("""
 
 DATA_DIR = Path(__file__).parent / "data"
 
-# 日本語会社名マッピング（yfinanceで取得できない場合のフォールバック）
-COMPANY_NAMES = {}
+# 業種の英語→日本語マッピング
+SECTOR_MAP = {
+    'Technology': 'テクノロジー',
+    'Consumer Cyclical': '一般消費財',
+    'Consumer Defensive': '生活必需品',
+    'Financial Services': '金融',
+    'Healthcare': 'ヘルスケア',
+    'Industrials': '資本財',
+    'Energy': 'エネルギー',
+    'Basic Materials': '素材',
+    'Communication Services': '通信',
+    'Real Estate': '不動産',
+    'Utilities': '公益',
+}
+
+# 理由タグの説明
+REASON_HELP = {
+    'RSI': 'RSI（相対力指数）が低い = 売られ過ぎの可能性',
+    '安値圏': '52週レンジの下位20%',
+    '低位置': '52週レンジの下位35%',
+    '続落': '連続して下落している',
+    '/5d': '直近5日間の下落率',
+    'ML判定': 'モデルスコアによる判定',
+}
 
 
 @st.cache_data(ttl=86400)
@@ -349,8 +399,12 @@ def get_stock_info(ticker: str):
         if not name:
             name = info.get('shortName') or info.get('longName') or code
 
+        # 業種を取得
+        sector_en = info.get('sector', '')
+        sector = SECTOR_MAP.get(sector_en, sector_en) if sector_en else ''
+
         if len(hist) < 20:
-            return name, None, 'データ不足'
+            return name, None, 'データ不足', sector
 
         close_price = hist.iloc[-1]['Close']
         reasons = []
@@ -390,12 +444,11 @@ def get_stock_info(ticker: str):
         if not reasons:
             reasons.append('ML判定')
 
-        return name, close_price, ', '.join(reasons[:2])
+        return name, close_price, ', '.join(reasons[:2]), sector
 
     except Exception as e:
-        # エラー時もYahooから名前を取得
         name = fetch_company_name_from_yahoo(code) or code
-        return name, None, '-'
+        return name, None, '-', ''
 
 
 def render_skeleton():
@@ -408,12 +461,27 @@ def render_skeleton():
     """, unsafe_allow_html=True)
 
 
-def render_stock_card(rank, code, name, score, price, reason):
+def render_stock_card(rank, code, name, score, price, reason, sector):
     price_str = f"¥{price:,.0f}" if price else "-"
     top_class = f"top-{rank}" if rank <= 3 else ""
     rank_class = f"top-{rank}" if rank <= 3 else ""
     yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
     display_name = name if name else code
+    sector_html = f'<span class="sector">{sector}</span>' if sector else ''
+
+    # 理由のツールチップ用説明を生成
+    reason_parts = reason.split(', ')
+    reason_tags = ''
+    for r in reason_parts:
+        tooltip = ''
+        for key, desc in REASON_HELP.items():
+            if key in r:
+                tooltip = desc
+                break
+        if tooltip:
+            reason_tags += f'<span class="tag" title="{tooltip}">{r}</span>'
+        else:
+            reason_tags += f'<span class="tag">{r}</span>'
 
     st.markdown(f"""
     <div class="stock-card {top_class}">
@@ -422,7 +490,7 @@ def render_stock_card(rank, code, name, score, price, reason):
                 <div class="stock-rank {rank_class}">{rank}</div>
                 <div class="stock-text">
                     <div class="stock-name-main">{display_name}</div>
-                    <div class="stock-code-sub">{code}</div>
+                    <div class="stock-code-sub">{code}{sector_html}</div>
                 </div>
             </div>
             <div class="score-container">
@@ -434,7 +502,7 @@ def render_stock_card(rank, code, name, score, price, reason):
                 <span class="meta-label">終値</span>
                 <span class="meta-value">{price_str}</span>
             </div>
-            <div class="tag">{reason}</div>
+            {reason_tags}
             <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
         </div>
     </div>
@@ -540,14 +608,15 @@ def main():
         status.text(f"取得中: {code}")
         progress.progress((i + 1) / top_n)
 
-        name, close_price, reason = get_stock_info(ticker)
+        name, close_price, reason, sector = get_stock_info(ticker)
         results.append({
             'rank': i + 1,
             'code': code,
             'name': name[:18] if name and len(name) > 18 else name,
             'score': row['score'],
             'price': close_price,
-            'reason': reason
+            'reason': reason,
+            'sector': sector
         })
 
     progress.empty()
@@ -557,7 +626,7 @@ def main():
     col1, col2 = st.columns(2)
     for i, r in enumerate(results):
         with col1 if i % 2 == 0 else col2:
-            render_stock_card(r['rank'], r['code'], r['name'], r['score'], r['price'], r['reason'])
+            render_stock_card(r['rank'], r['code'], r['name'], r['score'], r['price'], r['reason'], r['sector'])
 
     st.markdown("""
     <div class="disclaimer">
