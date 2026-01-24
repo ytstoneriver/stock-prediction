@@ -474,40 +474,44 @@ def get_stock_info(ticker: str, signal_date: str = None):
         sector_en = info.get('sector', '')
         sector = SECTOR_MAP.get(sector_en, sector_en) if sector_en else ''
 
+        # タイムゾーン除去
+        hist.index = hist.index.tz_localize(None)
+
         if len(hist) < 20:
             return name, None, None, 'データ不足', sector
 
-        # シグナル日の価格を取得
+        # シグナル日時点のデータに絞る
         if signal_date:
-            hist.index = hist.index.tz_localize(None)
             target_date = pd.Timestamp(signal_date)
             if target_date in hist.index:
-                open_price = hist.loc[target_date]['Open']
-                close_price = hist.loc[target_date]['Close']
+                signal_idx = hist.index.get_loc(target_date)
             else:
-                # 最も近い日付を探す
-                closest_idx = hist.index.get_indexer([target_date], method='nearest')[0]
-                open_price = hist.iloc[closest_idx]['Open']
-                close_price = hist.iloc[closest_idx]['Close']
-        else:
-            open_price = hist.iloc[-1]['Open']
-            close_price = hist.iloc[-1]['Close']
+                signal_idx = hist.index.get_indexer([target_date], method='nearest')[0]
+            # シグナル日までのデータのみ使用
+            hist = hist.iloc[:signal_idx + 1]
+
+        if len(hist) < 6:
+            return name, None, None, 'データ不足', sector
+
+        open_price = hist.iloc[-1]['Open']
+        close_price = hist.iloc[-1]['Close']
 
         reasons = []
 
-        # RSI
+        # RSI（シグナル日時点）
         delta = hist['Close'].diff()
         gain = delta.where(delta > 0, 0).rolling(14).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         current_rsi = rsi.iloc[-1]
-        if current_rsi < 30:
-            reasons.append(f'RSI {current_rsi:.0f}')
-        elif current_rsi < 40:
-            reasons.append(f'RSI {current_rsi:.0f}')
+        if not pd.isna(current_rsi):
+            if current_rsi < 30:
+                reasons.append(f'RSI {current_rsi:.0f}')
+            elif current_rsi < 40:
+                reasons.append(f'RSI {current_rsi:.0f}')
 
-        # 位置
+        # 位置（シグナル日時点）
         low_52w = hist['Low'].min()
         high_52w = hist['High'].max()
         position = (close_price - low_52w) / (high_52w - low_52w) * 100 if high_52w > low_52w else 50
@@ -516,13 +520,13 @@ def get_stock_info(ticker: str, signal_date: str = None):
         elif position < 35:
             reasons.append('低位置')
 
-        # 連続下落
+        # 連続下落（シグナル日時点）
         returns = hist['Close'].pct_change()
         consecutive_down = sum(1 for r in returns.iloc[-5:] if r < 0)
         if consecutive_down >= 3:
             reasons.append(f'{consecutive_down}日続落')
 
-        # 下落率
+        # 下落率（シグナル日時点）
         ret_5d = (close_price / hist['Close'].iloc[-6] - 1) * 100 if len(hist) >= 6 else 0
         if ret_5d < -5:
             reasons.append(f'{ret_5d:.0f}%/5d')
