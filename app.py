@@ -104,6 +104,9 @@ st.markdown("""
         border: 1px solid #e5e5e5;
         margin-bottom: 0.5rem;
         transition: border-color 0.15s;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
     }
     .stock-card:hover {
         border-color: #d4d4d4;
@@ -126,13 +129,16 @@ st.markdown("""
     }
     .stock-info {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 0.75rem;
+        flex: 1;
+        min-width: 0;
     }
     .stock-rank {
         background: #171717;
         color: #fff;
         min-width: 24px;
+        width: 24px;
         height: 24px;
         border-radius: 4px;
         display: flex;
@@ -140,11 +146,16 @@ st.markdown("""
         justify-content: center;
         font-weight: 600;
         font-size: 0.75rem;
+        flex-shrink: 0;
     }
     .stock-rank.top-1 { background: #171717; }
     .stock-rank.top-2 { background: #404040; }
     .stock-rank.top-3 { background: #737373; }
 
+    .stock-text {
+        min-width: 0;
+        flex: 1;
+    }
     .stock-code {
         font-size: 1rem;
         font-weight: 600;
@@ -154,37 +165,30 @@ st.markdown("""
         color: #737373;
         font-size: 0.75rem;
         margin-top: 0.125rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     /* スコア */
     .score-container {
         text-align: right;
+        flex-shrink: 0;
+        margin-left: 0.5rem;
     }
     .score-value {
         font-size: 0.875rem;
         font-weight: 600;
         color: #171717;
-        margin-bottom: 0.25rem;
-    }
-    .score-bar {
-        width: 60px;
-        height: 4px;
-        background: #e5e5e5;
-        border-radius: 2px;
-        overflow: hidden;
-    }
-    .score-fill {
-        height: 100%;
-        background: #171717;
-        border-radius: 2px;
     }
 
     /* メタ情報 */
     .stock-meta {
         display: flex;
-        gap: 1.5rem;
+        gap: 0.75rem;
         align-items: center;
         flex-wrap: wrap;
+        margin-top: auto;
     }
     .meta-item {
         display: flex;
@@ -213,9 +217,7 @@ st.markdown("""
         color: #737373;
         font-size: 0.7rem;
         text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
+        margin-left: auto;
     }
     .link:hover {
         color: #171717;
@@ -316,11 +318,20 @@ def get_stock_info(ticker: str):
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        name = info.get('shortName') or info.get('longName') or 'N/A'
+
+        # 日本語名を取得（displayNameやshortNameを試す）
+        name = info.get('displayName') or info.get('shortName') or info.get('longName') or 'N/A'
+
+        # 英語名の場合、コードから日本語名を取得を試みる
+        if name and name.replace(' ', '').replace('.', '').replace(',', '').isascii():
+            # yfinanceのlongNameに日本語が含まれることがある
+            long_name = info.get('longName', '')
+            if long_name and not long_name.replace(' ', '').replace('.', '').replace(',', '').isascii():
+                name = long_name
 
         hist = stock.history(period='60d')
         if len(hist) < 20:
-            return name, None, None, 'データ不足'
+            return name, None, 'データ不足'
 
         close_price = hist.iloc[-1]['Close']
         reasons = []
@@ -360,10 +371,10 @@ def get_stock_info(ticker: str):
         if not reasons:
             reasons.append('ML判定')
 
-        return name, close_price, ', '.join(reasons[:2]), None
+        return name, close_price, ', '.join(reasons[:2])
 
     except Exception as e:
-        return 'N/A', None, '-', str(e)
+        return 'N/A', None, '-'
 
 
 def render_skeleton():
@@ -378,26 +389,23 @@ def render_skeleton():
 
 def render_stock_card(rank, code, name, score, price, reason):
     price_str = f"¥{price:,.0f}" if price else "-"
-    score_pct = min(score * 100, 100)
     top_class = f"top-{rank}" if rank <= 3 else ""
     rank_class = f"top-{rank}" if rank <= 3 else ""
     yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
+    display_name = name if name else "-"
 
     st.markdown(f"""
     <div class="stock-card {top_class}">
         <div class="stock-main">
             <div class="stock-info">
                 <div class="stock-rank {rank_class}">{rank}</div>
-                <div>
+                <div class="stock-text">
                     <div class="stock-code">{code}</div>
-                    <div class="stock-name">{name}</div>
+                    <div class="stock-name">{display_name}</div>
                 </div>
             </div>
             <div class="score-container">
                 <div class="score-value">{score:.2f}</div>
-                <div class="score-bar">
-                    <div class="score-fill" style="width: {score_pct}%"></div>
-                </div>
             </div>
         </div>
         <div class="stock-meta">
@@ -406,9 +414,7 @@ def render_stock_card(rank, code, name, score, price, reason):
                 <span class="meta-value">{price_str}</span>
             </div>
             <div class="tag">{reason}</div>
-            <a href="{yahoo_url}" target="_blank" class="link">
-                Yahoo Finance →
-            </a>
+            <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -513,7 +519,7 @@ def main():
         status.text(f"取得中: {code}")
         progress.progress((i + 1) / top_n)
 
-        name, close_price, reason, _ = get_stock_info(ticker)
+        name, close_price, reason = get_stock_info(ticker)
         results.append({
             'rank': i + 1,
             'code': code,
