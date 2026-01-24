@@ -452,8 +452,9 @@ def get_stock_info(ticker: str):
         sector = SECTOR_MAP.get(sector_en, sector_en) if sector_en else ''
 
         if len(hist) < 20:
-            return name, None, 'データ不足', sector
+            return name, None, None, 'データ不足', sector
 
+        open_price = hist.iloc[-1]['Open']
         close_price = hist.iloc[-1]['Close']
         reasons = []
 
@@ -492,11 +493,11 @@ def get_stock_info(ticker: str):
         if not reasons:
             reasons.append('ML判定')
 
-        return name, close_price, ', '.join(reasons[:2]), sector
+        return name, open_price, close_price, ', '.join(reasons[:2]), sector
 
     except Exception as e:
         name = fetch_company_name_from_yahoo(code) or code
-        return name, None, '-', ''
+        return name, None, None, '-', ''
 
 
 def render_skeleton():
@@ -509,8 +510,9 @@ def render_skeleton():
     """, unsafe_allow_html=True)
 
 
-def render_stock_card(rank, code, name, score, price, reason, sector):
-    price_str = f"¥{price:,.0f}" if price else "-"
+def render_stock_card(rank, code, name, score, open_price, close_price, reason, sector):
+    open_str = f"¥{open_price:,.0f}" if open_price else "-"
+    close_str = f"¥{close_price:,.0f}" if close_price else "-"
     top_class = f"top-{rank}" if rank <= 3 else ""
     rank_class = f"top-{rank}" if rank <= 3 else ""
     yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
@@ -547,8 +549,12 @@ def render_stock_card(rank, code, name, score, price, reason, sector):
         </div>
         <div class="stock-meta">
             <div class="meta-item">
+                <span class="meta-label">始値</span>
+                <span class="meta-value">{open_str}</span>
+            </div>
+            <div class="meta-item">
                 <span class="meta-label">終値</span>
-                <span class="meta-value">{price_str}</span>
+                <span class="meta-value">{close_str}</span>
             </div>
             {reason_tags}
             <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
@@ -668,13 +674,14 @@ def main():
         status.text(f"取得中: {code}")
         progress.progress((i + 1) / top_n)
 
-        name, close_price, reason, sector = get_stock_info(ticker)
+        name, open_price, close_price, reason, sector = get_stock_info(ticker)
         results.append({
             'rank': i + 1,
             'code': code,
             'name': name[:18] if name and len(name) > 18 else name,
             'score': row['score'],
-            'price': close_price,
+            'open': open_price,
+            'close': close_price,
             'reason': reason,
             'sector': sector
         })
@@ -686,7 +693,7 @@ def main():
     col1, col2 = st.columns(2)
     for i, r in enumerate(results):
         with col1 if i % 2 == 0 else col2:
-            render_stock_card(r['rank'], r['code'], r['name'], r['score'], r['price'], r['reason'], r['sector'])
+            render_stock_card(r['rank'], r['code'], r['name'], r['score'], r['open'], r['close'], r['reason'], r['sector'])
 
     st.markdown("""
     <div class="disclaimer">
