@@ -29,31 +29,46 @@ st.markdown("""
         max-width: 1200px;
     }
 
+    /* 背景パターン */
+    .main::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 280px;
+        background: linear-gradient(180deg, #fafafa 0%, transparent 100%);
+        pointer-events: none;
+        z-index: -1;
+    }
+
     /* ヘッダー */
     .main-header {
         display: flex;
         align-items: center;
-        gap: 0.875rem;
-        border-bottom: 1px solid #e5e5e5;
-        padding: 0 0 1.5rem 0;
+        gap: 1rem;
+        padding: 0 0 2rem 0;
         margin-bottom: 2rem;
+        border-bottom: 1px solid #e5e5e5;
     }
-    .logo-icon {
-        width: 32px;
-        height: 32px;
+    .logo-mark {
+        position: relative;
+        width: 44px;
+        height: 44px;
         flex-shrink: 0;
     }
     .main-header h1 {
         margin: 0;
-        font-size: 1.25rem;
+        font-size: 1.375rem;
         font-weight: 600;
         color: #171717;
-        letter-spacing: -0.025em;
+        letter-spacing: -0.03em;
     }
     .main-header p {
-        margin: 0.125rem 0 0 0;
+        margin: 0.25rem 0 0 0;
         color: #a3a3a3;
         font-size: 0.8rem;
+        letter-spacing: 0.01em;
     }
 
     /* 統計 */
@@ -522,11 +537,16 @@ def render_stock_card(rank, code, name, score, price, reason, sector):
 def main():
     st.markdown("""
     <div class="main-header">
-        <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="32" height="32" rx="6" fill="#171717"/>
-            <path d="M8 20L12 16L16 18L24 10" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M20 10H24V14" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <div class="logo-mark">
+            <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="42" height="42" rx="10" stroke="#171717" stroke-width="1.5" fill="none"/>
+                <path d="M12 28L18 22L23 25L32 14" stroke="#171717" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="28" r="2.5" fill="#171717"/>
+                <circle cx="18" cy="22" r="2.5" fill="#171717"/>
+                <circle cx="23" cy="25" r="2.5" fill="#171717"/>
+                <circle cx="32" cy="14" r="2.5" fill="#171717"/>
+            </svg>
+        </div>
         <div>
             <h1>StockSignal</h1>
             <p>短期上昇シグナル検出</p>
