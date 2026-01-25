@@ -6,3 +6,8 @@ venv/
 .env
 *.log
 .DS_Store
+
+# 生成データ・モデル（スクリプト実行で再生成可能）
+data/*.parquet
+data/*.csv
+models/*.pkl
