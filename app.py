@@ -668,20 +668,42 @@ def main():
             st.warning("dataディレクトリが存在しません")
         st.stop()
 
-    available_dates = sorted(predictions['date'].unique())
+    available_signal_dates = sorted(predictions['date'].unique())
+
+    # シグナル日→エントリー日（翌営業日）を計算
+    def signal_to_entry(signal_date):
+        entry = pd.Timestamp(signal_date) + pd.Timedelta(days=1)
+        while entry.weekday() >= 5:  # 土日をスキップ
+            entry += pd.Timedelta(days=1)
+        return entry
+
+    # エントリー日→シグナル日（前営業日）を逆算
+    def entry_to_signal(entry_date, available_signals):
+        entry_ts = pd.Timestamp(entry_date)
+        # エントリー日に対応するシグナル日を探す
+        for signal in reversed(available_signals):
+            signal_ts = pd.Timestamp(signal)
+            expected_entry = signal_to_entry(signal_ts)
+            if expected_entry.date() == entry_ts.date():
+                return signal_ts
+        # 見つからない場合は最も近いシグナル日を返す
+        return pd.Timestamp(available_signals[-1])
+
+    # 利用可能なエントリー日のリストを作成
+    available_entry_dates = [signal_to_entry(d).date() for d in available_signal_dates]
 
     # サイドバー
     with st.sidebar:
         st.markdown("### 設定")
-        min_date = pd.Timestamp(available_dates[0]).date()
-        max_date = pd.Timestamp(available_dates[-1]).date()
+        min_entry_date = min(available_entry_dates)
+        max_entry_date = max(available_entry_dates)
 
-        selected_date = st.date_input(
-            "シグナル日",
-            value=max_date,
-            min_value=min_date,
-            max_value=max_date,
-            help="この日の終値で判定し、翌営業日の寄付でエントリー"
+        selected_entry_date = st.date_input(
+            "エントリー日",
+            value=max_entry_date,
+            min_value=min_entry_date,
+            max_value=max_entry_date,
+            help="この日の寄付でエントリー（前営業日の終値で判定）"
         )
         top_n = st.slider("表示件数", 5, 30, 10)
 
@@ -700,24 +722,18 @@ def main():
 
         # デバッグ情報
         with st.expander("データ情報"):
-            st.caption(f"日付範囲: {min_date} 〜 {max_date}")
+            st.caption(f"エントリー日範囲: {min_entry_date} 〜 {max_entry_date}")
 
     # メイン
-    selected_ts = pd.Timestamp(selected_date)
-    if selected_ts not in [pd.Timestamp(d) for d in available_dates]:
-        closest_date = min(available_dates, key=lambda x: abs(pd.Timestamp(x) - selected_ts))
-        st.warning(f"{closest_date.strftime('%Y-%m-%d')} を表示")
-        selected_ts = pd.Timestamp(closest_date)
+    # 選択されたエントリー日から対応するシグナル日を逆算
+    signal_ts = entry_to_signal(selected_entry_date, available_signal_dates)
+    entry_date = pd.Timestamp(selected_entry_date)
 
-    day_predictions = predictions[predictions['date'] == selected_ts].copy()
+    day_predictions = predictions[predictions['date'] == signal_ts].copy()
     # スコア閾値(0.55)以上のみ表示
     if 'score' in day_predictions.columns:
         day_predictions = day_predictions[day_predictions['score'] >= 0.55]
     day_predictions = day_predictions.sort_values('rank')
-
-    entry_date = selected_ts + pd.Timedelta(days=1)
-    while entry_date.weekday() >= 5:
-        entry_date += pd.Timedelta(days=1)
 
     weekdays = ['月', '火', '水', '木', '金', '土', '日']
 
@@ -725,12 +741,12 @@ def main():
     st.markdown(f"""
     <div class="stats-container">
         <div class="stat-item">
-            <div class="stat-label">シグナル日</div>
-            <div class="stat-value">{selected_ts.strftime('%Y/%m/%d')} ({weekdays[selected_ts.weekday()]})</div>
-        </div>
-        <div class="stat-item">
             <div class="stat-label">エントリー</div>
             <div class="stat-value">{entry_date.strftime('%Y/%m/%d')} ({weekdays[entry_date.weekday()]}) 寄付</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-label">シグナル日</div>
+            <div class="stat-value">{signal_ts.strftime('%Y/%m/%d')} ({weekdays[signal_ts.weekday()]})</div>
         </div>
         <div class="stat-item">
             <div class="stat-label">検出銘柄</div>
@@ -762,7 +778,7 @@ def main():
         status.text(f"取得中: {code}")
         progress.progress((i + 1) / top_n)
 
-        name, open_price, close_price, reason, sector = get_stock_info(ticker, str(selected_ts.date()))
+        name, open_price, close_price, reason, sector = get_stock_info(ticker, str(signal_ts.date()))
         results.append({
             'rank': i + 1,
             'code': code,
