@@ -4,8 +4,9 @@ Phase 1: データ取得とラベル確認
 import sys
 from pathlib import Path
 
-# srcをパスに追加
+# srcとプロジェクトルートをパスに追加
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from datetime import date
 import pandas as pd
@@ -51,8 +52,13 @@ def main():
 
     # Step 3: TOPIXデータ取得
     print(f"\n【Step 3】TOPIXデータ取得")
-    topix = fetch_topix(data_start, data_end)
-    print(f"  取得データ: {len(topix)}日分")
+    try:
+        topix = fetch_topix(data_start, data_end)
+        print(f"  取得データ: {len(topix)}日分")
+    except Exception as e:
+        print(f"  警告: TOPIXデータ取得失敗 ({e})")
+        print(f"  → TOPIXなしで続行します")
+        topix = None
 
     # Step 4: ユニバースフィルタ適用
     print(f"\n【Step 4】ユニバースフィルタ適用")
@@ -108,10 +114,14 @@ def main():
     output_dir.mkdir(exist_ok=True)
 
     labeled_df.to_parquet(output_dir / "labeled_data.parquet", index=False)
-    topix.to_parquet(output_dir / "topix.parquet", index=False)
     print(f"\n【データ保存】")
     print(f"  {output_dir / 'labeled_data.parquet'}")
-    print(f"  {output_dir / 'topix.parquet'}")
+
+    if topix is not None:
+        topix.to_parquet(output_dir / "topix.parquet", index=False)
+        print(f"  {output_dir / 'topix.parquet'}")
+    else:
+        print(f"  TOPIXデータなし（スキップ）")
 
     return stats
 

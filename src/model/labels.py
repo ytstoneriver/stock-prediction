@@ -1,33 +1,55 @@
 """
-ラベル生成（+10%到達判定）
+v2ラベル生成（利確vs損切りの先着判定）
+
+v1との主な違い:
+1. エントリー価格 = 翌日始値（v1は当日終値）
+2. 利確(+10%)が先に到達 → label=1
+3. 損切り(-10%)が先に到達 or タイムアウト → label=0
+4. 同日両方到達 → 損切り優先（保守的）
 """
 import pandas as pd
 import numpy as np
+from enum import Enum
+
+
+class ExitReason(Enum):
+    """決済理由"""
+    TAKE_PROFIT = 'take_profit'
+    STOP_LOSS = 'stop_loss'
+    STOP_LOSS_SAME_DAY = 'stop_loss_same_day'
+    TIMEOUT = 'timeout'
+    INSUFFICIENT_DATA = 'insufficient_data'
 
 
 def create_labels(
     df: pd.DataFrame,
-    target_return: float = 0.10,
+    take_profit: float = 0.10,
+    stop_loss: float = 0.10,
     horizon_days: int = 20
 ) -> pd.DataFrame:
     """
-    各日付・銘柄に対してラベルを生成
+    v2ラベルを生成
 
     ラベル定義:
-    - 未来horizon_days営業日以内に高値がtarget_return以上上昇したら1、それ以外は0
+    - シグナル日: d日目（当日終値時点で予測）
+    - エントリー: d+1日目の始値
+    - 判定: d+1 ~ d+horizon_daysの間に
+        - 高値が entry_price * (1 + take_profit) に先に到達 → label=1
+        - 安値が entry_price * (1 - stop_loss) に先に到達 → label=0
+        - どちらにも到達しない → label=0（タイムアウト）
 
     Args:
         df: OHLCVデータ（columns: date, ticker, Open, High, Low, Close, Volume）
-        target_return: 目標リターン（例: 0.10 = +10%）
-        horizon_days: ルックアヘッド期間（営業日）
+        take_profit: 利確ライン（例: 0.10 = +10%）
+        stop_loss: 損切りライン（例: 0.10 = -10%）
+        horizon_days: 最大保有期間（営業日）
 
     Returns:
-        DataFrame with additional column: label
+        DataFrame with columns: label, exit_reason, entry_price
     """
     result = df.copy()
     result = result.sort_values(['ticker', 'date']).reset_index(drop=True)
 
-    # 各銘柄ごとに処理
     labels = []
 
     for ticker in result['ticker'].unique():
@@ -35,122 +57,153 @@ def create_labels(
         ticker_df = ticker_df.sort_values('date').reset_index(drop=True)
 
         n = len(ticker_df)
-        ticker_labels = np.zeros(n, dtype=int)
+        ticker_labels = np.full(n, -1, dtype=int)  # -1 = 未計算
+        ticker_entry_prices = np.full(n, np.nan)
+        ticker_exit_reasons = [''] * n
 
-        for i in range(n):
-            # 基準価格
-            base_price = ticker_df.loc[i, 'Close']
+        for i in range(n - 1):  # 最終日は翌日データがないのでスキップ
+            # エントリー価格 = 翌日始値
+            entry_idx = i + 1
+            entry_price = ticker_df.iloc[entry_idx]['Open']
+            ticker_entry_prices[i] = entry_price
 
-            # 未来期間の高値を取得（i+1 から i+horizon_days まで）
-            future_start = i + 1
-            future_end = min(i + horizon_days + 1, n)
+            # 利確・損切りライン
+            tp_price = entry_price * (1 + take_profit)
+            sl_price = entry_price * (1 - stop_loss)
 
-            if future_start < n:
-                future_highs = ticker_df.loc[future_start:future_end - 1, 'High']
-                max_high = future_highs.max()
+            # 判定期間: entry_idx から entry_idx + horizon_days - 1 まで
+            check_start = entry_idx
+            check_end = min(entry_idx + horizon_days, n)
 
-                # リターン計算
-                max_return = (max_high / base_price) - 1
+            if check_start >= n:
+                ticker_exit_reasons[i] = ExitReason.INSUFFICIENT_DATA.value
+                continue
 
-                if max_return >= target_return:
-                    ticker_labels[i] = 1
+            # 日次で判定（先着順）
+            exit_reason = ExitReason.TIMEOUT
+            label = 0
+
+            for j in range(check_start, check_end):
+                high = ticker_df.iloc[j]['High']
+                low = ticker_df.iloc[j]['Low']
+
+                # 判定
+                hit_tp = high >= tp_price
+                hit_sl = low <= sl_price
+
+                if hit_tp and hit_sl:
+                    # 両方到達: 損切り優先（保守的）
+                    exit_reason = ExitReason.STOP_LOSS_SAME_DAY
+                    label = 0
+                    break
+                elif hit_tp:
+                    exit_reason = ExitReason.TAKE_PROFIT
+                    label = 1
+                    break
+                elif hit_sl:
+                    exit_reason = ExitReason.STOP_LOSS
+                    label = 0
+                    break
+
+            ticker_labels[i] = label
+            ticker_exit_reasons[i] = exit_reason.value
 
         ticker_df['label'] = ticker_labels
+        ticker_df['entry_price'] = ticker_entry_prices
+        ticker_df['exit_reason'] = ticker_exit_reasons
         labels.append(ticker_df)
 
     result = pd.concat(labels, ignore_index=True)
+
+    # データ不足行を除外（label == -1）
+    result = result[result['label'] >= 0].copy()
+
     return result
 
 
-def calculate_positive_rate(df: pd.DataFrame) -> dict:
+def analyze_label_distribution(df: pd.DataFrame) -> dict:
     """
-    positive_rateを計算
+    ラベル分布を分析
 
     Args:
-        df: ラベル付きデータ（columns: date, ticker, label, ...）
+        df: v2ラベル付きデータ
 
     Returns:
-        dict with positive_rate statistics
+        統計情報のdict
     """
-    # 全体
     total = len(df)
-    positive = df['label'].sum()
-    overall_rate = positive / total if total > 0 else 0
+    if total == 0:
+        return {'total': 0, 'positive': 0, 'negative': 0, 'positive_rate': 0}
+
+    positive = (df['label'] == 1).sum()
+    negative = (df['label'] == 0).sum()
+
+    # exit_reasonの内訳
+    exit_reason_counts = df['exit_reason'].value_counts().to_dict()
 
     # 年別
-    df_with_year = df.copy()
-    df_with_year['year'] = pd.to_datetime(df_with_year['date']).dt.year
-    yearly = df_with_year.groupby('year').agg(
+    df_copy = df.copy()
+    df_copy['year'] = pd.to_datetime(df_copy['date']).dt.year
+    yearly = df_copy.groupby('year').agg(
         total=('label', 'count'),
         positive=('label', 'sum')
     )
     yearly['rate'] = yearly['positive'] / yearly['total']
-
-    # 月別
-    df_with_month = df.copy()
-    df_with_month['year_month'] = pd.to_datetime(df_with_month['date']).dt.to_period('M')
-    monthly = df_with_month.groupby('year_month').agg(
-        total=('label', 'count'),
-        positive=('label', 'sum')
-    )
-    monthly['rate'] = monthly['positive'] / monthly['total']
+    yearly = yearly.to_dict('index')
 
     return {
-        'overall': {
-            'total': total,
-            'positive': positive,
-            'rate': overall_rate
-        },
-        'yearly': yearly.to_dict('index'),
-        'monthly': monthly.to_dict('index')
+        'total': total,
+        'positive': int(positive),
+        'negative': int(negative),
+        'positive_rate': positive / total,
+        'exit_reasons': exit_reason_counts,
+        'yearly': yearly
     }
 
 
-def print_positive_rate_report(stats: dict):
-    """
-    positive_rateのレポートを表示
-    """
-    print("=" * 50)
-    print("Positive Rate Report")
-    print("=" * 50)
+def print_label_report(stats: dict):
+    """v2ラベルのレポートを表示"""
+    print("=" * 60)
+    print("v2 Label Distribution Report")
+    print("=" * 60)
 
-    # 全体
-    overall = stats['overall']
     print(f"\n【全体】")
-    print(f"  サンプル数: {overall['total']:,}")
-    print(f"  正例数: {overall['positive']:,}")
-    print(f"  正例率: {overall['rate']:.2%}")
+    print(f"  サンプル数: {stats['total']:,}")
+    print(f"  正例（利確先着）: {stats['positive']:,} ({stats['positive_rate']:.2%})")
+    print(f"  負例（損切り/タイムアウト）: {stats['negative']:,}")
 
-    # 年別
-    print(f"\n【年別】")
-    for year, data in sorted(stats['yearly'].items()):
-        print(f"  {year}: {data['rate']:.2%} ({data['positive']:,}/{data['total']:,})")
+    if 'exit_reasons' in stats:
+        print(f"\n【Exit Reason内訳】")
+        for reason, count in sorted(stats['exit_reasons'].items()):
+            pct = count / stats['total'] * 100
+            print(f"  {reason}: {count:,} ({pct:.1f}%)")
 
-    # 月別（直近12ヶ月のみ表示）
-    print(f"\n【月別（直近12ヶ月）】")
-    monthly_items = sorted(stats['monthly'].items(), reverse=True)[:12]
-    for month, data in reversed(monthly_items):
-        print(f"  {month}: {data['rate']:.2%} ({data['positive']:,}/{data['total']:,})")
+    if 'yearly' in stats:
+        print(f"\n【年別正例率】")
+        for year, data in sorted(stats['yearly'].items()):
+            print(f"  {year}: {data['rate']:.2%} ({data['positive']:,}/{data['total']:,})")
 
-    print("=" * 50)
+    print("=" * 60)
 
 
 if __name__ == "__main__":
-    # テスト用のダミーデータ
-    import numpy as np
+    # テスト
     from datetime import date, timedelta
 
-    dates = [date(2024, 1, 1) + timedelta(days=i) for i in range(100)]
+    # ダミーデータ
+    n_days = 50
+    dates = [date(2024, 1, 1) + timedelta(days=i) for i in range(n_days)]
+
     test_df = pd.DataFrame({
-        'date': dates * 2,
-        'ticker': ['7203.T'] * 100 + ['6758.T'] * 100,
-        'Open': np.random.uniform(2000, 2100, 200),
-        'High': np.random.uniform(2050, 2200, 200),
-        'Low': np.random.uniform(1900, 2000, 200),
-        'Close': np.random.uniform(2000, 2100, 200),
-        'Volume': np.random.uniform(1e6, 1e7, 200)
+        'date': dates,
+        'ticker': ['TEST.T'] * n_days,
+        'Open': [1000 + i * 5 for i in range(n_days)],
+        'High': [1050 + i * 5 for i in range(n_days)],
+        'Low': [950 + i * 5 for i in range(n_days)],
+        'Close': [1020 + i * 5 for i in range(n_days)],
+        'Volume': [100000] * n_days
     })
 
-    labeled = create_labels(test_df, target_return=0.05, horizon_days=10)
-    stats = calculate_positive_rate(labeled)
-    print_positive_rate_report(stats)
+    result = create_labels(test_df, take_profit=0.10, stop_loss=0.10)
+    stats = analyze_label_distribution(result)
+    print_label_report(stats)

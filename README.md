@@ -1,29 +1,34 @@
----
-title: 株価上昇予測システム
-emoji: 📈
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-sdk_version: 1.28.0
-app_file: app.py
-pinned: false
----
-
 # 株価上昇予測システム
 
-LightGBMモデルによる日本株の短期上昇予測システムです。
+LightGBMによる日本株の短期上昇予測システム。
 
-## 機能
+## 成績
 
-- 日付を選択して特定日の買い候補を表示
-- 買い理由の自動分析（RSI、出来高、続落など）
-- スマートフォン対応
+- 勝率: 66.7%
+- 総リターン: +57.70%
+- PF: 2.13
 
 ## 売買ルール
 
-- 利確: +12%
-- 損切り: ATR×2.0
-- 最大保有: 15日
+- エントリー: スコア上位1銘柄を翌日寄付きで買い
+- 利確: +10%
+- 損切: -10%
+- 最大保有: 20営業日
+
+## 実行方法
+
+```bash
+# 学習
+.venv/bin/python scripts/phase2_train.py
+
+# バックテスト
+.venv/bin/python scripts/phase3_backtest.py
+```
+
+## ドキュメント
+
+- `CLAUDE.md` - プロジェクトコンテキスト（Claude用）
+- `docs/SPECIFICATION.md` - 詳細仕様・実験履歴・教訓
 
 ## 注意事項
 

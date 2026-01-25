@@ -1,7 +1,10 @@
-from .labels import create_labels, calculate_positive_rate, print_positive_rate_report
+from .labels import create_labels, analyze_label_distribution, print_label_report
+from .trainer import StockPredictor, print_evaluation_report
 
 __all__ = [
     'create_labels',
-    'calculate_positive_rate',
-    'print_positive_rate_report',
+    'analyze_label_distribution',
+    'print_label_report',
+    'StockPredictor',
+    'print_evaluation_report',
 ]
