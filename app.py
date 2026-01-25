@@ -446,9 +446,7 @@ def fetch_company_name_from_yahoo(code: str) -> str:
 
 @st.cache_data(ttl=3600)
 def load_predictions():
-    pred_path = DATA_DIR / "app_predictions.parquet"
-    if not pred_path.exists():
-        pred_path = DATA_DIR / "test_predictions.parquet"
+    pred_path = DATA_DIR / "predictions.parquet"
     if not pred_path.exists():
         return None
     df = pd.read_parquet(pred_path)
@@ -677,9 +675,9 @@ def main():
         st.markdown("---")
         st.markdown("### 売買ルール")
         st.markdown("""
-        <div class="rule-item"><span class="rule-label">利確</span><span class="rule-value">+12%</span></div>
-        <div class="rule-item"><span class="rule-label">損切り</span><span class="rule-value">ATR × 2.0</span></div>
-        <div class="rule-item"><span class="rule-label">最大保有</span><span class="rule-value">15日</span></div>
+        <div class="rule-item"><span class="rule-label">利確</span><span class="rule-value">+10%</span></div>
+        <div class="rule-item"><span class="rule-label">損切り</span><span class="rule-value">-10%</span></div>
+        <div class="rule-item"><span class="rule-label">最大保有</span><span class="rule-value">20営業日</span></div>
         """, unsafe_allow_html=True)
 
         st.markdown("---")
@@ -695,6 +693,9 @@ def main():
         selected_ts = pd.Timestamp(closest_date)
 
     day_predictions = predictions[predictions['date'] == selected_ts].copy()
+    # スコア閾値(0.55)以上のみ表示
+    if 'score' in day_predictions.columns:
+        day_predictions = day_predictions[day_predictions['score'] >= 0.55]
     day_predictions = day_predictions.sort_values('rank')
 
     entry_date = selected_ts + pd.Timedelta(days=1)
