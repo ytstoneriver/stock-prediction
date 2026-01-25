@@ -686,8 +686,11 @@ def main():
             expected_entry = signal_to_entry(signal_ts)
             if expected_entry.date() == entry_ts.date():
                 return signal_ts
-        # 見つからない場合は最も近いシグナル日を返す
-        return pd.Timestamp(available_signals[-1])
+        # 見つからない場合は、最も近いシグナル日を返す
+        # （選択されたエントリー日の前後で最も近いもの）
+        signal_timestamps = [pd.Timestamp(s) for s in available_signals]
+        closest = min(signal_timestamps, key=lambda s: abs(signal_to_entry(s) - entry_ts))
+        return closest
 
     # 利用可能なエントリー日のリストを作成
     available_entry_dates = [signal_to_entry(d).date() for d in available_signal_dates]
