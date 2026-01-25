@@ -444,7 +444,7 @@ def fetch_company_name_from_yahoo(code: str) -> str:
     return None
 
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=60)  # キャッシュ1分（デバッグ用）
 def load_predictions():
     # 優先順位: predictions.parquet > app_predictions.parquet
     for filename in ["predictions.parquet", "app_predictions.parquet"]:
@@ -691,6 +691,10 @@ def main():
         with st.expander("更新方法"):
             st.code("python scripts/phase1_data_check.py\npython scripts/phase2_train.py\npython scripts/phase3_backtest.py", language="bash")
             st.caption("GitHubへpushで自動デプロイ")
+
+        # デバッグ情報
+        with st.expander("データ情報"):
+            st.caption(f"日付範囲: {min_date} 〜 {max_date}")
 
     # メイン
     selected_ts = pd.Timestamp(selected_date)
