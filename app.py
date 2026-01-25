@@ -730,7 +730,12 @@ def main():
     # メイン
     # 選択されたエントリー日から対応するシグナル日を逆算
     signal_ts = entry_to_signal(selected_entry_date, available_signal_dates)
-    entry_date = pd.Timestamp(selected_entry_date)
+    actual_entry_date = signal_to_entry(signal_ts)  # 実際のエントリー日
+    selected_entry_ts = pd.Timestamp(selected_entry_date)
+
+    # 選択日と実際のエントリー日が異なる場合は通知
+    if actual_entry_date.date() != selected_entry_ts.date():
+        st.info(f"📅 {selected_entry_date} は休場日のため、{actual_entry_date.strftime('%Y/%m/%d')} のデータを表示しています")
 
     day_predictions = predictions[predictions['date'] == signal_ts].copy()
     # スコア閾値(0.55)以上のみ表示
@@ -745,7 +750,7 @@ def main():
     <div class="stats-container">
         <div class="stat-item">
             <div class="stat-label">エントリー</div>
-            <div class="stat-value">{entry_date.strftime('%Y/%m/%d')} ({weekdays[entry_date.weekday()]}) 寄付</div>
+            <div class="stat-value">{actual_entry_date.strftime('%Y/%m/%d')} ({weekdays[actual_entry_date.weekday()]}) 寄付</div>
         </div>
         <div class="stat-item">
             <div class="stat-label">シグナル日</div>
