@@ -182,6 +182,44 @@ def main():
         score_threshold=SCORE_THRESHOLD,
         min_score_gap=MIN_SCORE_GAP
     )
+
+    # Step 8.5: 最新の日付まで予測を追加（ラベルがない期間）
+    print("\n  【最新日付の予測追加】")
+    latest_pred_date = pd.Timestamp(predictions_df['date'].max())
+    latest_ohlcv_date = pd.Timestamp(ohlcv_df['date'].max())
+    print(f"  予測データ最終日: {latest_pred_date.date()}")
+    print(f"  OHLCVデータ最終日: {latest_ohlcv_date.date()}")
+
+    if latest_ohlcv_date > latest_pred_date:
+        # 特徴量生成には過去データも必要なので、全期間のOHLCVを使う
+        ohlcv_df['date'] = pd.to_datetime(ohlcv_df['date'])
+        # ダミーラベルを設定（予測には使わない）
+        ohlcv_for_future = ohlcv_df.copy()
+        ohlcv_for_future['label'] = -1
+        ohlcv_for_future['exit_reason'] = 'pending'
+        ohlcv_for_future['entry_price'] = ohlcv_for_future['Open']
+
+        # 特徴量生成（全期間）
+        all_features = build_features(ohlcv_for_future, topix_df, sector_mapping)
+        # latest_pred_date以降のデータだけを抽出
+        future_features = all_features[all_features['date'] > latest_pred_date]
+
+        if len(future_features) > 0:
+            # 予測
+            future_pred = predictor.predict_with_ranking(
+                future_features,
+                top_n=TOP_N_STOCKS,
+                score_threshold=SCORE_THRESHOLD,
+                min_score_gap=MIN_SCORE_GAP
+            )
+            # 結合
+            predictions_df = pd.concat([predictions_df, future_pred], ignore_index=True)
+            print(f"  追加: {future_pred['date'].nunique()}日分")
+        else:
+            print(f"  追加なし（特徴量生成できず）")
+    else:
+        print(f"  追加なし（データは最新）")
+
     predictions_df.to_parquet(data_dir / "predictions.parquet", index=False)
     print(f"  予測結果: {data_dir / 'predictions.parquet'}")
 
