@@ -446,12 +446,14 @@ def fetch_company_name_from_yahoo(code: str) -> str:
 
 @st.cache_data(ttl=3600)
 def load_predictions():
-    pred_path = DATA_DIR / "predictions.parquet"
-    if not pred_path.exists():
-        return None
-    df = pd.read_parquet(pred_path)
-    df['date'] = pd.to_datetime(df['date'])
-    return df
+    # 優先順位: predictions.parquet > app_predictions.parquet
+    for filename in ["predictions.parquet", "app_predictions.parquet"]:
+        pred_path = DATA_DIR / filename
+        if pred_path.exists():
+            df = pd.read_parquet(pred_path)
+            df['date'] = pd.to_datetime(df['date'])
+            return df
+    return None
 
 
 @st.cache_data(ttl=300)
@@ -654,6 +656,11 @@ def main():
     predictions = load_predictions()
     if predictions is None:
         st.error("予測データが見つかりません。")
+        st.info(f"データディレクトリ: {DATA_DIR}")
+        if DATA_DIR.exists():
+            st.info(f"ファイル一覧: {list(DATA_DIR.glob('*.parquet'))}")
+        else:
+            st.warning("dataディレクトリが存在しません")
         st.stop()
 
     available_dates = sorted(predictions['date'].unique())
