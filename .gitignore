@@ -8,6 +8,10 @@ venv/
 .DS_Store
 
 # 生成データ・モデル（スクリプト実行で再生成可能）
-data/*.parquet
+# ただしアプリに必要なファイルは除外しない
+data/features*.parquet
+data/labeled_data.parquet
+data/fundamental_cache.parquet
+data/sector_mapping.parquet
 data/*.csv
 models/*.pkl
