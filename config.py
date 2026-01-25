@@ -14,7 +14,7 @@ from datetime import date
 TRAIN_START = date(2022, 1, 1)
 TRAIN_END = date(2023, 12, 31)
 TEST_START = date(2024, 1, 1)
-TEST_END = date(2024, 6, 30)
+TEST_END = date(2025, 1, 31)
 
 # =============================================================================
 # ラベル設定
