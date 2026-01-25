@@ -463,7 +463,8 @@ def get_stock_info(ticker: str, signal_date: str = None):
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        hist = stock.history(period='90d')
+        # 2年分のデータを取得（過去のsignal_dateに対応するため）
+        hist = stock.history(period='2y')
 
         # 日本語名を取得（Yahoo Financeから）
         name = fetch_company_name_from_yahoo(code)
@@ -474,8 +475,13 @@ def get_stock_info(ticker: str, signal_date: str = None):
         sector_en = info.get('sector', '')
         sector = SECTOR_MAP.get(sector_en, sector_en) if sector_en else ''
 
-        # タイムゾーン除去
-        hist.index = hist.index.tz_localize(None)
+        # データが空の場合
+        if hist.empty:
+            return name, None, None, 'データ取得失敗', sector
+
+        # タイムゾーン除去（tz_localizeはtzがない場合のみ、ある場合はtz_convert使用）
+        if hist.index.tz is not None:
+            hist.index = hist.index.tz_convert(None)
 
         if len(hist) < 20:
             return name, None, None, 'データ不足', sector
@@ -483,12 +489,11 @@ def get_stock_info(ticker: str, signal_date: str = None):
         # シグナル日時点のデータに絞る
         if signal_date:
             target_date = pd.Timestamp(signal_date)
-            if target_date in hist.index:
-                signal_idx = hist.index.get_loc(target_date)
-            else:
-                signal_idx = hist.index.get_indexer([target_date], method='nearest')[0]
-            # シグナル日までのデータのみ使用
-            hist = hist.iloc[:signal_idx + 1]
+            # シグナル日以前のデータのみ使用
+            hist_filtered = hist[hist.index <= target_date]
+            # フィルタリング後も十分なデータがある場合のみ使用
+            if len(hist_filtered) >= 20:
+                hist = hist_filtered
 
         if len(hist) < 6:
             return name, None, None, 'データ不足', sector
@@ -672,10 +677,11 @@ def main():
         max_date = pd.Timestamp(available_dates[-1]).date()
 
         selected_date = st.date_input(
-            "分析日",
+            "シグナル日",
             value=max_date,
             min_value=min_date,
-            max_value=max_date
+            max_value=max_date,
+            help="この日の終値で判定し、翌営業日の寄付でエントリー"
         )
         top_n = st.slider("表示件数", 5, 30, 10)
 

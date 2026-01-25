@@ -7,14 +7,20 @@
 - PF: 2.13
 """
 from datetime import date
+from dateutil.relativedelta import relativedelta
 
 # =============================================================================
-# 期間設定
+# 期間設定（動的：今日基準で自動計算）
 # =============================================================================
-TRAIN_START = date(2022, 1, 1)
-TRAIN_END = date(2023, 12, 31)
-TEST_START = date(2024, 1, 1)
-TEST_END = date(2025, 1, 31)
+_today = date.today()
+
+# 学習データ: 2年前〜1年前
+TRAIN_START = _today - relativedelta(years=2)
+TRAIN_END = _today - relativedelta(years=1)
+
+# テスト/予測データ: 1年前〜今日
+TEST_START = _today - relativedelta(years=1)
+TEST_END = _today
 
 # =============================================================================
 # ラベル設定

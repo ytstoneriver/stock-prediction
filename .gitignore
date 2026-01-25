@@ -7,11 +7,13 @@ venv/
 *.log
 .DS_Store
 
-# 生成データ・モデル（スクリプト実行で再生成可能）
-# ただしアプリに必要なファイルは除外しない
+# 生成データ（スクリプト実行で再生成可能）
 data/features*.parquet
 data/labeled_data.parquet
 data/fundamental_cache.parquet
-data/sector_mapping.parquet
 data/*.csv
-models/*.pkl
+
+# アプリに必要なファイルは除外しない
+# data/predictions.parquet - 予測データ
+# data/sector_mapping.parquet - セクター情報
+# models/predictor.pkl - 学習済みモデル
