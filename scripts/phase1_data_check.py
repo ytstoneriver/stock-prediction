@@ -13,11 +13,11 @@ import pandas as pd
 
 from config import (
     TRAIN_START, TRAIN_END, TEST_START, TEST_END,
-    LABEL_TARGET_RETURN, LABEL_HORIZON_DAYS,
+    LABEL_TAKE_PROFIT, LABEL_STOP_LOSS, LABEL_HORIZON_DAYS,
     MIN_PRICE, MAX_PRICE, MIN_TURNOVER, MIN_VOLUME, LIQUIDITY_WINDOW
 )
 from data import fetch_ohlcv, fetch_topix, fetch_prime_tickers, apply_liquidity_filter
-from model import create_labels, calculate_positive_rate, print_positive_rate_report
+from model.labels import create_labels, analyze_label_distribution
 
 
 def main():
@@ -29,7 +29,7 @@ def main():
     print(f"\n【設定】")
     print(f"  学習期間: {TRAIN_START} 〜 {TRAIN_END}")
     print(f"  検証期間: {TEST_START} 〜 {TEST_END}")
-    print(f"  ラベル: +{LABEL_TARGET_RETURN:.0%} / {LABEL_HORIZON_DAYS}営業日")
+    print(f"  ラベル: 利確+{LABEL_TAKE_PROFIT:.0%} / 損切-{LABEL_STOP_LOSS:.0%} / {LABEL_HORIZON_DAYS}営業日")
     print(f"  流動性フィルタ:")
     print(f"    株価: {MIN_PRICE:,} 〜 {MAX_PRICE:,}円")
     print(f"    売買代金: {MIN_TURNOVER/1e8:.1f}億円/日以上")
@@ -80,34 +80,30 @@ def main():
     print(f"\n【Step 5】ラベル生成")
     labeled_df = create_labels(
         filtered_df,
-        target_return=LABEL_TARGET_RETURN,
+        take_profit=LABEL_TAKE_PROFIT,
+        stop_loss=LABEL_STOP_LOSS,
         horizon_days=LABEL_HORIZON_DAYS
     )
+    print(f"  ラベル付きデータ: {len(labeled_df):,}行")
 
-    # 学習期間のみでpositive_rate計算（検証期間はラベルが不完全になる可能性）
-    train_df = labeled_df[
-        (labeled_df['date'] >= TRAIN_START) &
-        (labeled_df['date'] <= TRAIN_END)
-    ]
-    print(f"  学習期間データ: {len(train_df):,}行")
-
-    # Step 6: positive_rate確認
-    print(f"\n【Step 6】positive_rate確認")
-    stats = calculate_positive_rate(train_df)
-    print_positive_rate_report(stats)
+    # Step 6: ラベル分布確認
+    print(f"\n【Step 6】ラベル分布確認")
+    stats = analyze_label_distribution(labeled_df)
+    print(f"  正例（利確先着）: {stats['positive_count']:,} ({stats['positive_rate']:.1%})")
+    print(f"  負例（損切り/タイムアウト）: {stats['negative_count']:,}")
 
     # 判断基準
-    rate = stats['overall']['rate']
+    rate = stats['positive_rate']
     print(f"\n【判断】")
-    if rate >= 0.10:
-        print(f"  positive_rate = {rate:.2%} >= 10%")
-        print(f"  → そのまま継続")
-    elif rate >= 0.05:
-        print(f"  positive_rate = {rate:.2%} (5%〜10%)")
-        print(f"  → 継続（class_weight調整推奨）")
+    if rate >= 0.20:
+        print(f"  positive_rate = {rate:.1%} >= 20%")
+        print(f"  → 良好なバランス")
+    elif rate >= 0.10:
+        print(f"  positive_rate = {rate:.1%} (10%〜20%)")
+        print(f"  → 許容範囲")
     else:
-        print(f"  positive_rate = {rate:.2%} < 5%")
-        print(f"  → 閾値を+8%に下げることを検討")
+        print(f"  positive_rate = {rate:.1%} < 10%")
+        print(f"  → 不均衡、class_weight調整推奨")
 
     # データ保存
     output_dir = Path(__file__).parent.parent / "data"
