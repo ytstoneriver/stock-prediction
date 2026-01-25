@@ -585,29 +585,38 @@ def main():
     <div class="main-header">
         <div class="logo-mark">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- 招き猫風キャット（コイン付き） -->
-                <!-- 耳 -->
-                <polygon points="12,18 8,6 18,14" fill="#0a0a0a"/>
-                <polygon points="36,18 40,6 30,14" fill="#0a0a0a"/>
+                <!-- 可愛い招き猫（クリーム色） -->
+                <!-- 耳（外側） -->
+                <polygon points="10,20 6,4 20,16" fill="#1a1a1a"/>
+                <polygon points="38,20 42,4 28,16" fill="#1a1a1a"/>
+                <!-- 耳（内側ピンク） -->
+                <polygon points="11,18 9,8 17,15" fill="#ffb6c1"/>
+                <polygon points="37,18 39,8 31,15" fill="#ffb6c1"/>
                 <!-- 顔 -->
-                <ellipse cx="24" cy="26" rx="14" ry="12" fill="#0a0a0a"/>
+                <ellipse cx="24" cy="28" rx="16" ry="14" fill="#fef9f0" stroke="#e0d5c5" stroke-width="1"/>
                 <!-- おでこのコイン -->
-                <circle cx="24" cy="20" r="5" fill="#d4af37" stroke="#0a0a0a" stroke-width="1"/>
-                <text x="24" y="22" text-anchor="middle" font-size="6" font-weight="bold" fill="#0a0a0a">¥</text>
-                <!-- 目 -->
-                <ellipse cx="18" cy="26" rx="2" ry="2.5" fill="#fff"/>
-                <ellipse cx="30" cy="26" rx="2" ry="2.5" fill="#fff"/>
-                <circle cx="18" cy="26" r="1" fill="#0a0a0a"/>
-                <circle cx="30" cy="26" r="1" fill="#0a0a0a"/>
+                <ellipse cx="24" cy="18" rx="5" ry="4" fill="#ffd700" stroke="#daa520" stroke-width="1"/>
+                <text x="24" y="20" text-anchor="middle" font-size="5" font-weight="bold" fill="#8b6914">¥</text>
+                <!-- 目（大きくて可愛く） -->
+                <ellipse cx="17" cy="28" rx="4" ry="5" fill="#fff"/>
+                <ellipse cx="31" cy="28" rx="4" ry="5" fill="#fff"/>
+                <ellipse cx="18" cy="29" rx="2.5" ry="3" fill="#2a2a2a"/>
+                <ellipse cx="32" cy="29" rx="2.5" ry="3" fill="#2a2a2a"/>
+                <!-- 目のハイライト -->
+                <circle cx="19" cy="27" r="1" fill="#fff"/>
+                <circle cx="33" cy="27" r="1" fill="#fff"/>
                 <!-- 鼻 -->
-                <polygon points="24,30 22,32 26,32" fill="#666"/>
-                <!-- 口（にっこり） -->
-                <path d="M20,33 Q24,36 28,33" stroke="#fff" stroke-width="1" fill="none"/>
+                <ellipse cx="24" cy="33" rx="2" ry="1.5" fill="#ffb6c1"/>
+                <!-- 口 -->
+                <path d="M21,35 Q24,38 27,35" stroke="#2a2a2a" stroke-width="1" fill="none"/>
+                <line x1="24" y1="34.5" x2="24" y2="36" stroke="#2a2a2a" stroke-width="0.8"/>
                 <!-- ひげ -->
-                <line x1="10" y1="28" x2="16" y2="29" stroke="#666" stroke-width="0.5"/>
-                <line x1="10" y1="31" x2="16" y2="31" stroke="#666" stroke-width="0.5"/>
-                <line x1="38" y1="28" x2="32" y2="29" stroke="#666" stroke-width="0.5"/>
-                <line x1="38" y1="31" x2="32" y2="31" stroke="#666" stroke-width="0.5"/>
+                <line x1="6" y1="30" x2="14" y2="31" stroke="#aaa" stroke-width="0.8"/>
+                <line x1="6" y1="33" x2="14" y2="33" stroke="#aaa" stroke-width="0.8"/>
+                <line x1="6" y1="36" x2="14" y2="35" stroke="#aaa" stroke-width="0.8"/>
+                <line x1="42" y1="30" x2="34" y2="31" stroke="#aaa" stroke-width="0.8"/>
+                <line x1="42" y1="33" x2="34" y2="33" stroke="#aaa" stroke-width="0.8"/>
+                <line x1="42" y1="36" x2="34" y2="35" stroke="#aaa" stroke-width="0.8"/>
             </svg>
         </div>
         <div class="header-text">
