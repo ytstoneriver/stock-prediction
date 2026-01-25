@@ -1,0 +1,49 @@
+name: Daily Prediction Update
+
+on:
+  schedule:
+    # 毎朝6:00 JST (21:00 UTC前日) に実行
+    - cron: '0 21 * * 0-4'  # 日〜木の21:00 UTC = 月〜金の6:00 JST
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  update-predictions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run data check
+        run: python scripts/phase1_data_check.py
+        continue-on-error: true
+
+      - name: Run training and prediction
+        run: python scripts/phase2_train.py
+
+      - name: Commit and push predictions
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/predictions.parquet data/sector_mapping.parquet models/
+          git diff --staged --quiet || git commit -m "Daily prediction update $(date +'%Y-%m-%d')"
+          git push
