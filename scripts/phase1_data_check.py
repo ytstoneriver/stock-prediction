@@ -89,8 +89,8 @@ def main():
     # Step 6: ラベル分布確認
     print(f"\n【Step 6】ラベル分布確認")
     stats = analyze_label_distribution(labeled_df)
-    print(f"  正例（利確先着）: {stats['positive_count']:,} ({stats['positive_rate']:.1%})")
-    print(f"  負例（損切り/タイムアウト）: {stats['negative_count']:,}")
+    print(f"  正例（利確先着）: {stats['positive']:,} ({stats['positive_rate']:.1%})")
+    print(f"  負例（損切り/タイムアウト）: {stats['negative']:,}")
 
     # 判断基準
     rate = stats['positive_rate']
