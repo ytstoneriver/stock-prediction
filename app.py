@@ -585,12 +585,29 @@ def main():
     <div class="main-header">
         <div class="logo-mark">
             <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- フラクタル三角形（シェルピンスキー風） -->
-                <polygon points="24,4 44,40 4,40" fill="none" stroke="#0a0a0a" stroke-width="1.5"/>
-                <polygon points="24,16 34,34 14,34" fill="none" stroke="#0a0a0a" stroke-width="1"/>
-                <polygon points="14,28 19,37 9,37" fill="#0a0a0a"/>
-                <polygon points="24,22 29,31 19,31" fill="#666"/>
-                <polygon points="34,28 39,37 29,37" fill="#aaa"/>
+                <!-- 招き猫風キャット（コイン付き） -->
+                <!-- 耳 -->
+                <polygon points="12,18 8,6 18,14" fill="#0a0a0a"/>
+                <polygon points="36,18 40,6 30,14" fill="#0a0a0a"/>
+                <!-- 顔 -->
+                <ellipse cx="24" cy="26" rx="14" ry="12" fill="#0a0a0a"/>
+                <!-- おでこのコイン -->
+                <circle cx="24" cy="20" r="5" fill="#d4af37" stroke="#0a0a0a" stroke-width="1"/>
+                <text x="24" y="22" text-anchor="middle" font-size="6" font-weight="bold" fill="#0a0a0a">¥</text>
+                <!-- 目 -->
+                <ellipse cx="18" cy="26" rx="2" ry="2.5" fill="#fff"/>
+                <ellipse cx="30" cy="26" rx="2" ry="2.5" fill="#fff"/>
+                <circle cx="18" cy="26" r="1" fill="#0a0a0a"/>
+                <circle cx="30" cy="26" r="1" fill="#0a0a0a"/>
+                <!-- 鼻 -->
+                <polygon points="24,30 22,32 26,32" fill="#666"/>
+                <!-- 口（にっこり） -->
+                <path d="M20,33 Q24,36 28,33" stroke="#fff" stroke-width="1" fill="none"/>
+                <!-- ひげ -->
+                <line x1="10" y1="28" x2="16" y2="29" stroke="#666" stroke-width="0.5"/>
+                <line x1="10" y1="31" x2="16" y2="31" stroke="#666" stroke-width="0.5"/>
+                <line x1="38" y1="28" x2="32" y2="29" stroke="#666" stroke-width="0.5"/>
+                <line x1="38" y1="31" x2="32" y2="31" stroke="#666" stroke-width="0.5"/>
             </svg>
         </div>
         <div class="header-text">
