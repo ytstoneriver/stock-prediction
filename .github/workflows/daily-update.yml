@@ -6,6 +6,9 @@ on:
     - cron: '0 21 * * 0-4'  # 日〜木の21:00 UTC = 月〜金の6:00 JST
   workflow_dispatch:  # 手動実行も可能
 
+permissions:
+  contents: write
+
 jobs:
   update-predictions:
     runs-on: ubuntu-latest
