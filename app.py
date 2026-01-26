@@ -385,6 +385,49 @@ st.markdown("""
         margin-bottom: 0;
     }
 
+    /* 高確度シグナルカード */
+    .high-conf-card {
+        border-left: 3px solid #16a34a;
+        background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+    }
+    .high-conf-card:hover {
+        border-color: #15803d;
+    }
+    .tag.high-conf {
+        background: #dcfce7;
+        color: #166534;
+        border-color: #bbf7d0;
+    }
+    .high-conf-section {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e5e5;
+    }
+    .high-conf-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .high-conf-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #166534;
+    }
+    .high-conf-badge {
+        background: #16a34a;
+        color: #fff;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    .high-conf-description {
+        font-size: 0.75rem;
+        color: #737373;
+        margin-bottom: 1rem;
+    }
+
     /* モバイル */
     @media (max-width: 768px) {
         .main-header h1 { font-size: 1.25rem; }
@@ -398,6 +441,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 DATA_DIR = Path(__file__).parent / "data"
+
+# 高確度セクター（勝率90%以上）
+HIGH_CONFIDENCE_SECTORS = ['Financial Services', 'Basic Materials']
 
 # 業種の英語→日本語マッピング
 SECTOR_MAP = {
@@ -444,6 +490,15 @@ def fetch_company_name_from_yahoo(code: str) -> str:
     return None
 
 
+@st.cache_data(ttl=3600)
+def load_sector_mapping():
+    """セクターマッピングを読み込み"""
+    sector_path = DATA_DIR / "sector_mapping.parquet"
+    if sector_path.exists():
+        return pd.read_parquet(sector_path)
+    return None
+
+
 @st.cache_data(ttl=60)  # キャッシュ1分（デバッグ用）
 def load_predictions():
     # 優先順位: predictions.parquet > app_predictions.parquet
@@ -454,6 +509,120 @@ def load_predictions():
             df['date'] = pd.to_datetime(df['date'])
             return df
     return None
+
+
+def get_high_confidence_signals(predictions, sector_mapping, days=30):
+    """直近N日の高確度シグナルを取得
+
+    条件:
+    1. Financial Services または Basic Materials セクター（勝率94%）
+    2. 連続2回目のシグナル（勝率62%）
+    3. スコア0.80以上（勝率58%）
+
+    除外条件:
+    - 連続3回目以降のシグナル（過学習傾向）
+    - 直近5回中3回以上損切りの銘柄（実績不良）
+    """
+    if predictions is None or sector_mapping is None:
+        return pd.DataFrame()
+
+    # 直近の実績が悪い銘柄を特定（直近5回中3回以上損切り）
+    rank1_all = predictions[predictions['rank'] == 1].copy()
+    bad_tickers = set()
+    for ticker in rank1_all['ticker'].unique():
+        ticker_data = rank1_all[rank1_all['ticker'] == ticker].sort_values('date', ascending=False).head(5)
+        if len(ticker_data) >= 3:
+            # exit_reasonが0.0または'stop_loss'の場合は損切り
+            stop_loss_count = sum(
+                1 for _, row in ticker_data.iterrows()
+                if row.get('exit_reason') in [0.0, 'stop_loss']
+            )
+            if stop_loss_count >= 3:
+                bad_tickers.add(ticker)
+
+    # 直近N日に絞る
+    max_date = predictions['date'].max()
+    min_date = max_date - pd.Timedelta(days=days)
+    recent = predictions[predictions['date'] >= min_date].copy()
+
+    # rank1のみ
+    recent = recent[recent['rank'] == 1]
+
+    # 実績不良銘柄を除外
+    recent = recent[~recent['ticker'].isin(bad_tickers)]
+
+    if recent.empty:
+        return pd.DataFrame()
+
+    # セクター情報を付加
+    recent = recent.merge(sector_mapping, on='ticker', how='left')
+
+    # 連続シグナルを検出
+    recent = recent.sort_values(['ticker', 'date'])
+    recent['prev_ticker'] = recent['ticker'].shift(1)
+    recent['prev_date'] = recent['date'].shift(1)
+    recent['is_consecutive'] = (
+        (recent['ticker'] == recent['prev_ticker']) &
+        ((recent['date'] - recent['prev_date']).dt.days <= 3)  # 土日考慮で3日以内
+    )
+
+    # 連続回数をカウント
+    recent['consecutive_count'] = 0
+    current_ticker = None
+    count = 0
+    for idx in recent.index:
+        if recent.loc[idx, 'ticker'] != current_ticker:
+            current_ticker = recent.loc[idx, 'ticker']
+            count = 1
+        else:
+            count += 1
+        recent.loc[idx, 'consecutive_count'] = count
+
+    # 高確度条件を判定
+    results = []
+    for _, row in recent.iterrows():
+        # 連続3回目以降は除外（過学習傾向）
+        if row['consecutive_count'] >= 3:
+            continue
+
+        reasons = []
+        confidence_score = 0
+
+        # 条件1: 高確度セクター
+        if row.get('sector') in HIGH_CONFIDENCE_SECTORS:
+            sector_ja = SECTOR_MAP.get(row['sector'], row['sector'])
+            reasons.append(f'{sector_ja}セクター（勝率94%）')
+            confidence_score += 3
+
+        # 条件2: 連続2回目シグナル
+        if row['consecutive_count'] == 2:
+            reasons.append('連続2回目シグナル（勝率62%）')
+            confidence_score += 2
+
+        # 条件3: 高スコア
+        if row['score'] >= 0.80:
+            reasons.append(f'高スコア {row["score"]:.2f}（勝率58%）')
+            confidence_score += 1
+
+        if reasons:
+            results.append({
+                'date': row['date'],
+                'ticker': row['ticker'],
+                'score': row['score'],
+                'sector': row.get('sector', ''),
+                'reasons': reasons,
+                'confidence_score': confidence_score
+            })
+
+    if not results:
+        return pd.DataFrame()
+
+    result_df = pd.DataFrame(results)
+    # 信頼度スコア→日付の降順でソート
+    result_df = result_df.sort_values(['confidence_score', 'date'], ascending=[False, False])
+    # 同じ銘柄は最も信頼度の高い1件だけを残す
+    result_df = result_df.drop_duplicates(subset='ticker', keep='first')
+    return result_df
 
 
 @st.cache_data(ttl=300)
@@ -554,6 +723,49 @@ def render_skeleton():
         <div class="skeleton skeleton-line w-20"></div>
     </div>
     """, unsafe_allow_html=True)
+
+
+def get_high_confidence_card_html(code, name, score, sector, reasons, signal_date, entry_date):
+    """高確度シグナル用のカードHTML"""
+    import html
+    yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
+    display_name = html.escape(name) if name else code
+    sector_ja = SECTOR_MAP.get(sector, sector) if sector else ''
+    sector_html = f'<span class="sector">{html.escape(sector_ja)}</span>' if sector_ja else ''
+
+    # 理由タグを生成
+    reason_tags = ''
+    for r in reasons:
+        r_escaped = html.escape(r)
+        reason_tags += f'<span class="tag high-conf">{r_escaped}</span>'
+
+    return f'''<div class="stock-card high-conf-card">
+        <div class="stock-main">
+            <div class="stock-info">
+                <div class="stock-text">
+                    <div class="stock-name-main">{display_name}</div>
+                    <div class="stock-code-sub">{code}{sector_html}</div>
+                </div>
+            </div>
+            <div class="score-container">
+                <div class="score-value">{score:.2f}</div>
+            </div>
+        </div>
+        <div class="stock-prices">
+            <div class="meta-item">
+                <span class="meta-label">シグナル日</span>
+                <span class="meta-value">{signal_date}</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">エントリー</span>
+                <span class="meta-value">{entry_date}</span>
+            </div>
+        </div>
+        <div class="stock-footer">
+            <div class="stock-tags">{reason_tags}</div>
+            <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
+        </div>
+    </div>'''
 
 
 def get_stock_card_html(rank, code, name, score, open_price, close_price, reason, sector):
@@ -807,6 +1019,45 @@ def main():
         cards_html += get_stock_card_html(r['rank'], r['code'], r['name'], r['score'], r['open'], r['close'], r['reason'], r['sector'])
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
+
+    # 高確度シグナルセクション
+    sector_mapping = load_sector_mapping()
+    high_conf_signals = get_high_confidence_signals(predictions, sector_mapping, days=30)
+
+    if not high_conf_signals.empty:
+        st.markdown("""
+        <div class="high-conf-section">
+            <div class="high-conf-header">
+                <span class="high-conf-title">高確度シグナル</span>
+                <span class="high-conf-badge">直近30日</span>
+            </div>
+            <div class="high-conf-description">
+                過去データ分析に基づく高勝率条件に合致したシグナル（金融・素材セクター、連続2回目、スコア0.80以上）
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # シグナル日→エントリー日を計算する関数（既存のものを再利用）
+        def calc_entry_date(signal_date):
+            entry = pd.Timestamp(signal_date) + pd.Timedelta(days=1)
+            while entry.weekday() >= 5:
+                entry += pd.Timedelta(days=1)
+            return entry.strftime('%m/%d')
+
+        high_conf_cards = '<div class="stock-grid">'
+        for _, row in high_conf_signals.head(10).iterrows():
+            code = row['ticker'].replace('.T', '')
+            name = fetch_company_name_from_yahoo(code) or code
+            if name and len(name) > 18:
+                name = name[:18]
+            signal_date_str = row['date'].strftime('%m/%d')
+            entry_date_str = calc_entry_date(row['date'])
+            high_conf_cards += get_high_confidence_card_html(
+                code, name, row['score'], row['sector'],
+                row['reasons'], signal_date_str, entry_date_str
+            )
+        high_conf_cards += '</div>'
+        st.markdown(high_conf_cards, unsafe_allow_html=True)
 
     st.markdown("""
     <div class="disclaimer">
