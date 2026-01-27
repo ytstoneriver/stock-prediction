@@ -428,6 +428,49 @@ st.markdown("""
         margin-bottom: 1rem;
     }
 
+    /* 超高確度シグナルカード */
+    .super-high-conf-card {
+        border-left: 3px solid #d97706;
+        background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);
+    }
+    .super-high-conf-card:hover {
+        border-color: #b45309;
+    }
+    .tag.super-high-conf {
+        background: #fef3c7;
+        color: #92400e;
+        border-color: #fcd34d;
+    }
+    .super-high-conf-section {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e5e5;
+    }
+    .super-high-conf-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .super-high-conf-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #92400e;
+    }
+    .super-high-conf-badge {
+        background: #d97706;
+        color: #fff;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.65rem;
+        font-weight: 600;
+    }
+    .super-high-conf-description {
+        font-size: 0.75rem;
+        color: #737373;
+        margin-bottom: 1rem;
+    }
+
     /* モバイル */
     @media (max-width: 768px) {
         .main-header h1 { font-size: 1.25rem; }
@@ -503,6 +546,17 @@ def load_sector_mapping(_mtime=None):
     sector_path = DATA_DIR / "sector_mapping.parquet"
     if sector_path.exists():
         return pd.read_parquet(sector_path)
+    return None
+
+
+@st.cache_data(ttl=300)
+def load_features(_mtime=None):
+    """特徴量データを読み込み（ファイル更新時にキャッシュ無効化）"""
+    features_path = DATA_DIR / "features.parquet"
+    if features_path.exists():
+        df = pd.read_parquet(features_path)
+        df['date'] = pd.to_datetime(df['date'])
+        return df
     return None
 
 
@@ -631,6 +685,106 @@ def get_high_confidence_signals(predictions, sector_mapping, days=30):
     # 同じ銘柄は最も信頼度の高い1件だけを残す
     result_df = result_df.drop_duplicates(subset='ticker', keep='first')
     return result_df
+
+
+def get_super_high_confidence_signals(predictions, sector_mapping, days=30):
+    """超高確度シグナルを取得
+
+    条件:
+    - 52週安値から20%以内（feat_from_52w_low < 0.20）
+    - 統計的に有意（勝率73.5%, p=0.0045）
+
+    Parameters
+    ----------
+    predictions : pd.DataFrame
+        予測データ（feat_from_52w_lowを含む）
+    sector_mapping : pd.DataFrame
+        セクターマッピング
+    days : int
+        直近N日を対象
+    """
+    if predictions is None:
+        return pd.DataFrame()
+
+    # feat_from_52w_lowがない場合は空を返す
+    if 'feat_from_52w_low' not in predictions.columns:
+        return pd.DataFrame()
+
+    # 直近N日のrank1シグナルを取得
+    max_date = predictions['date'].max()
+    min_date = max_date - pd.Timedelta(days=days)
+    recent = predictions[
+        (predictions['date'] >= min_date) &
+        (predictions['rank'] == 1)
+    ].copy()
+
+    if recent.empty:
+        return pd.DataFrame()
+
+    # 条件: 52週安値から20%以内
+    super_high_conf = recent[recent['feat_from_52w_low'] < 0.20].copy()
+
+    if super_high_conf.empty:
+        return pd.DataFrame()
+
+    # セクター情報を付加
+    if sector_mapping is not None:
+        super_high_conf = super_high_conf.merge(sector_mapping, on='ticker', how='left')
+
+    # 理由を追加
+    super_high_conf['reasons'] = super_high_conf['feat_from_52w_low'].apply(
+        lambda x: [f'52週安値から{x*100:.1f}%（勝率73.5%）']
+    )
+
+    # 日付降順でソート
+    super_high_conf = super_high_conf.sort_values('date', ascending=False)
+    # 同じ銘柄は最新1件だけを残す
+    super_high_conf = super_high_conf.drop_duplicates(subset='ticker', keep='first')
+
+    return super_high_conf
+
+
+def get_super_high_confidence_card_html(code, name, score, sector, reasons, signal_date, entry_date, from_low_pct):
+    """超高確度シグナル用のカードHTML"""
+    import html
+    yahoo_url = f"https://finance.yahoo.co.jp/quote/{code}.T"
+    display_name = html.escape(name) if name else code
+    sector_ja = SECTOR_MAP.get(sector, sector) if sector else ''
+    sector_html = f'<span class="sector">{html.escape(sector_ja)}</span>' if sector_ja else ''
+
+    # 理由タグを生成
+    reason_tags = ''
+    for r in reasons:
+        r_escaped = html.escape(r)
+        reason_tags += f'<span class="tag super-high-conf">{r_escaped}</span>'
+
+    return f'''<div class="stock-card super-high-conf-card">
+        <div class="stock-main">
+            <div class="stock-info">
+                <div class="stock-text">
+                    <div class="stock-name-main">{display_name}</div>
+                    <div class="stock-code-sub">{code}{sector_html}</div>
+                </div>
+            </div>
+            <div class="score-container">
+                <div class="score-value">{score:.2f}</div>
+            </div>
+        </div>
+        <div class="stock-prices">
+            <div class="meta-item">
+                <span class="meta-label">シグナル日</span>
+                <span class="meta-value">{signal_date}</span>
+            </div>
+            <div class="meta-item">
+                <span class="meta-label">エントリー</span>
+                <span class="meta-value">{entry_date}</span>
+            </div>
+        </div>
+        <div class="stock-footer">
+            <div class="stock-tags">{reason_tags}</div>
+            <a href="{yahoo_url}" target="_blank" class="link">詳細 →</a>
+        </div>
+    </div>'''
 
 
 @st.cache_data(ttl=300)
@@ -1028,8 +1182,49 @@ def main():
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
 
-    # 高確度シグナルセクション
+    # セクターマッピングを読み込み
     sector_mapping = load_sector_mapping(_mtime=_get_file_mtime(DATA_DIR / "sector_mapping.parquet"))
+
+    # シグナル日→エントリー日を計算する関数
+    def calc_entry_date(signal_date):
+        entry = pd.Timestamp(signal_date) + pd.Timedelta(days=1)
+        while entry.weekday() >= 5:
+            entry += pd.Timedelta(days=1)
+        return entry.strftime('%m/%d')
+
+    # 超高確度シグナルセクション（統計的に有意な条件）
+    super_high_conf_signals = get_super_high_confidence_signals(predictions, sector_mapping, days=30)
+
+    if not super_high_conf_signals.empty:
+        st.markdown("""
+        <div class="super-high-conf-section">
+            <div class="super-high-conf-header">
+                <span class="super-high-conf-title">超高確度シグナル</span>
+                <span class="super-high-conf-badge">統計的有意</span>
+            </div>
+            <div class="super-high-conf-description">
+                52週安値から20%以内の銘柄（勝率73.5%, p=0.0045で統計的に有意）
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        super_high_conf_cards = '<div class="stock-grid">'
+        for _, row in super_high_conf_signals.head(10).iterrows():
+            code = row['ticker'].replace('.T', '')
+            name = fetch_company_name_from_yahoo(code) or code
+            if name and len(name) > 18:
+                name = name[:18]
+            signal_date_str = row['date'].strftime('%m/%d')
+            entry_date_str = calc_entry_date(row['date'])
+            from_low_pct = row.get('feat_from_52w_low', 0) * 100
+            super_high_conf_cards += get_super_high_confidence_card_html(
+                code, name, row['score'], row.get('sector', ''),
+                row['reasons'], signal_date_str, entry_date_str, from_low_pct
+            )
+        super_high_conf_cards += '</div>'
+        st.markdown(super_high_conf_cards, unsafe_allow_html=True)
+
+    # 高確度シグナルセクション
     high_conf_signals = get_high_confidence_signals(predictions, sector_mapping, days=30)
 
     if not high_conf_signals.empty:
@@ -1044,13 +1239,6 @@ def main():
             </div>
         </div>
         """, unsafe_allow_html=True)
-
-        # シグナル日→エントリー日を計算する関数（既存のものを再利用）
-        def calc_entry_date(signal_date):
-            entry = pd.Timestamp(signal_date) + pd.Timedelta(days=1)
-            while entry.weekday() >= 5:
-                entry += pd.Timedelta(days=1)
-            return entry.strftime('%m/%d')
 
         high_conf_cards = '<div class="stock-grid">'
         for _, row in high_conf_signals.head(10).iterrows():

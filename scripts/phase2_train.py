@@ -186,15 +186,27 @@ def main():
     # Step 8.5: 最新の日付まで予測を追加（ラベルがない期間）
     print("\n  【最新日付の予測追加】")
     latest_pred_date = pd.Timestamp(predictions_df['date'].max())
-    latest_ohlcv_date = pd.Timestamp(ohlcv_df['date'].max())
+
+    # ラベル前のOHLCVデータを読み込み（最新日を含む）
+    raw_ohlcv_path = data_dir / "ohlcv_data.parquet"
+    if raw_ohlcv_path.exists():
+        raw_ohlcv_df = pd.read_parquet(raw_ohlcv_path)
+        raw_ohlcv_df['date'] = pd.to_datetime(raw_ohlcv_df['date'])
+        latest_ohlcv_date = pd.Timestamp(raw_ohlcv_df['date'].max())
+    else:
+        # 従来の動作（labeled_dataを使用）
+        raw_ohlcv_df = ohlcv_df.copy()
+        latest_ohlcv_date = pd.Timestamp(ohlcv_df['date'].max())
+
     print(f"  予測データ最終日: {latest_pred_date.date()}")
     print(f"  OHLCVデータ最終日: {latest_ohlcv_date.date()}")
 
     if latest_ohlcv_date > latest_pred_date:
-        # 特徴量生成には過去データも必要なので、全期間のOHLCVを使う
-        ohlcv_df['date'] = pd.to_datetime(ohlcv_df['date'])
+        # ファンダフィルタを適用した銘柄のみに絞る
+        raw_ohlcv_df = raw_ohlcv_df[raw_ohlcv_df['ticker'].isin(filtered_tickers)]
+
         # ダミーラベルを設定（予測には使わない）
-        ohlcv_for_future = ohlcv_df.copy()
+        ohlcv_for_future = raw_ohlcv_df.copy()
         ohlcv_for_future['label'] = -1
         ohlcv_for_future['exit_reason'] = 'pending'
         ohlcv_for_future['entry_price'] = ohlcv_for_future['Open']

@@ -109,9 +109,12 @@ def main():
     output_dir = Path(__file__).parent.parent / "data"
     output_dir.mkdir(exist_ok=True)
 
+    # ラベル前のOHLCVデータも保存（最新日の予測用）
+    filtered_df.to_parquet(output_dir / "ohlcv_data.parquet", index=False)
     labeled_df.to_parquet(output_dir / "labeled_data.parquet", index=False)
     print(f"\n【データ保存】")
-    print(f"  {output_dir / 'labeled_data.parquet'}")
+    print(f"  {output_dir / 'ohlcv_data.parquet'} (OHLCV: 〜{filtered_df['date'].max()})")
+    print(f"  {output_dir / 'labeled_data.parquet'} (ラベル付き: 〜{labeled_df['date'].max()})")
 
     if topix is not None:
         topix.to_parquet(output_dir / "topix.parquet", index=False)
