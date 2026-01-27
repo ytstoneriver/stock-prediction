@@ -3,7 +3,9 @@ name: Daily Prediction Update
 on:
   schedule:
     # 毎朝6:00 JST (21:00 UTC前日) に実行
-    - cron: '0 21 * * 0-4'  # 日〜木の21:00 UTC = 月〜金の6:00 JST
+    # 月〜金の朝6:00 JSTに実行するには、日〜木の21:00 UTCに設定
+    # 追加: 土曜朝6:00 JST（金曜21:00 UTC）も実行して週末前の最新予測を確保
+    - cron: '0 21 * * 0-5'  # 日〜金の21:00 UTC = 月〜土の6:00 JST
   workflow_dispatch:  # 手動実行も可能
 
 permissions:
