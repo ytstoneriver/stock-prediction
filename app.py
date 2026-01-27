@@ -490,17 +490,25 @@ def fetch_company_name_from_yahoo(code: str) -> str:
     return None
 
 
-@st.cache_data(ttl=3600)
-def load_sector_mapping():
-    """セクターマッピングを読み込み"""
+def _get_file_mtime(path):
+    """ファイルの更新日時を取得（キャッシュキー用）"""
+    try:
+        return path.stat().st_mtime if path.exists() else 0
+    except:
+        return 0
+
+@st.cache_data(ttl=300)
+def load_sector_mapping(_mtime=None):
+    """セクターマッピングを読み込み（ファイル更新時にキャッシュ無効化）"""
     sector_path = DATA_DIR / "sector_mapping.parquet"
     if sector_path.exists():
         return pd.read_parquet(sector_path)
     return None
 
 
-@st.cache_data(ttl=60)  # キャッシュ1分（デバッグ用）
-def load_predictions():
+@st.cache_data(ttl=60)
+def load_predictions(_mtime=None):
+    """予測データを読み込み（ファイル更新時にキャッシュ無効化）"""
     # 優先順位: predictions.parquet > app_predictions.parquet
     for filename in ["predictions.parquet", "app_predictions.parquet"]:
         pred_path = DATA_DIR / filename
@@ -870,7 +878,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    predictions = load_predictions()
+    predictions = load_predictions(_mtime=_get_file_mtime(DATA_DIR / "predictions.parquet"))
     if predictions is None:
         st.error("予測データが見つかりません。")
         st.info(f"データディレクトリ: {DATA_DIR}")
@@ -1021,7 +1029,7 @@ def main():
     st.markdown(cards_html, unsafe_allow_html=True)
 
     # 高確度シグナルセクション
-    sector_mapping = load_sector_mapping()
+    sector_mapping = load_sector_mapping(_mtime=_get_file_mtime(DATA_DIR / "sector_mapping.parquet"))
     high_conf_signals = get_high_confidence_signals(predictions, sector_mapping, days=30)
 
     if not high_conf_signals.empty:
