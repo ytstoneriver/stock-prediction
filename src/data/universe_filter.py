@@ -161,7 +161,24 @@ def get_sector_mapping(fundamental_df: pd.DataFrame) -> Dict[str, str]:
     Dict[str, str]
         {ticker: sector}
     """
-    return dict(zip(fundamental_df['ticker'], fundamental_df['sector']))
+    mapping = dict(zip(fundamental_df['ticker'], fundamental_df['sector']))
+
+    # yfinanceのセクター情報が間違っている銘柄を手動で修正
+    # 参考: https://finance.yahoo.co.jp/ の業種情報
+    SECTOR_OVERRIDES = {
+        '5016.T': 'Basic Materials',   # JX金属（非鉄金属）
+        '5706.T': 'Basic Materials',   # 三井金属（非鉄金属）
+        '5801.T': 'Basic Materials',   # 古河電気工業（非鉄金属・電線）
+        '5802.T': 'Basic Materials',   # 住友電気工業（非鉄金属・電線）
+        '5803.T': 'Basic Materials',   # フジクラ（非鉄金属・電線）
+        '6620.T': 'Industrials',       # 宮越ホールディングス（機械）
+    }
+
+    for ticker, sector in SECTOR_OVERRIDES.items():
+        if ticker in mapping:
+            mapping[ticker] = sector
+
+    return mapping
 
 
 def print_filter_report(result: Dict) -> None:
