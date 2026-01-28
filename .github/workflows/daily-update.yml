@@ -48,6 +48,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/predictions.parquet data/sector_mapping.parquet data/features.parquet models/
+          git add data/predictions.parquet data/sector_mapping.parquet models/
           git diff --staged --quiet || git commit -m "Daily prediction update $(date +'%Y-%m-%d')"
           git push
